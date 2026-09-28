@@ -552,8 +552,11 @@ IconSize = UDim2.fromOffset(34, 34),
         ToggleKeybind = Enum.KeyCode.RightControl,
 
         -- Veloria topbar button callbacks
+        -- Veloria Discord button: always copies this file URL.
+        -- Update discord.lua on GitHub whenever the Discord content changes;
+        -- the UI/library URL stays the same.
         SupportCallback  = nil,
-        SupportLink      = nil,
+        SupportLink      = "https://discord.gg/Fwz25f4qf3",
         SupportIcon      = "message-circle",
         SupportShape     = "Square", -- "Circle" or "Square"
         DiscordCallback  = nil,   -- legacy alias
@@ -11101,11 +11104,15 @@ function Library:CreateWindow(WindowInfo)
         if WindowInfo.Icon then
             local Icon = Library:GetCustomIcon(WindowInfo.Icon)
             WindowIcon = New("ImageLabel", {
+                BackgroundTransparency = 1,
                 Size = WindowInfo.IconSize,
+                ScaleType = Enum.ScaleType.Fit,
+                Rotation = 0,
                 Parent = TitleHolder,
             })
             if Icon then
                 Library:ApplyLucideIcon(WindowIcon, Icon)
+                WindowIcon.Rotation = 0
             end
         else
             WindowIcon = New("TextLabel", {
@@ -11372,12 +11379,14 @@ function Library:CreateWindow(WindowInfo)
                     if WindowInfo.SupportCallback then
                         WindowInfo.SupportCallback()
                     elseif WindowInfo.SupportLink and setclipboard then
-                        setclipboard(WindowInfo.SupportLink)
-                        Library:Notify({
-                            Title = "Support",
-                            Description = "Support link copied to clipboard!",
-                            Time = 3,
-                        })
+                        local Copied = pcall(setclipboard, WindowInfo.SupportLink)
+                        if Copied then
+                            Library:Notify({
+                                Title = "Discord",
+                                Description = "Discord.lua link copied to clipboard!",
+                                Time = 3,
+                            })
+                        end
                     elseif WindowInfo.DiscordCallback then
                         WindowInfo.DiscordCallback()
                     end
@@ -14477,9 +14486,12 @@ function Library:CreateWindow(WindowInfo)
                     ImageColor3 = "WhiteColor",
                     Position = UDim2.fromScale(0.5, 0.5),
                     Size = UDim2.fromOffset(WindowInfo.OpenUIIconSize or 26, WindowInfo.OpenUIIconSize or 26),
+                    ScaleType = Enum.ScaleType.Fit,
+                    Rotation = 0,
                     Parent = OpenButton,
                 })
                 Library:ApplyLucideIcon(IconImage, Icon)
+                IconImage.Rotation = 0
             end
 
             if string.lower(WindowInfo.OpenUIShape or "Circle") == "circle" then
