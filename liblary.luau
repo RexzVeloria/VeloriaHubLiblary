@@ -552,11 +552,10 @@ IconSize = UDim2.fromOffset(34, 34),
         ToggleKeybind = Enum.KeyCode.RightControl,
 
         -- Veloria topbar button callbacks
-        -- Veloria Discord button: always copies this file URL.
-        -- Update discord.lua on GitHub whenever the Discord content changes;
-        -- the UI/library URL stays the same.
+        -- Veloria Discord button: fetches + copies the current RAW discord.lua contents.
+        -- Update discord.lua on GitHub and the button automatically copies the new contents.
         SupportCallback  = nil,
-        SupportLink      = "https://discord.gg/Fwz25f4qf3",
+        SupportLink      = "https://raw.githubusercontent.com/RexzVeloria/VeloriaHubLiblary/refs/heads/main/discord.lua",
         SupportIcon      = "message-circle",
         SupportShape     = "Square", -- "Circle" or "Square"
         DiscordCallback  = nil,   -- legacy alias
@@ -11110,6 +11109,10 @@ function Library:CreateWindow(WindowInfo)
                 Rotation = 0,
                 Parent = TitleHolder,
             })
+            New("UIAspectRatioConstraint", {
+                AspectRatio = 1,
+                Parent = WindowIcon,
+            })
             if Icon then
                 Library:ApplyLucideIcon(WindowIcon, Icon)
                 WindowIcon.Rotation = 0
@@ -11301,7 +11304,14 @@ function Library:CreateWindow(WindowInfo)
             RightWrapper.Size = UDim2.new(1, -(TitleWidth + TopbarRightInset + 8), 1, -8)
 
             local TitleAvailable = math.max(90, TitleWidth - (WindowInfo.Icon and WindowInfo.IconSize.X.Offset + 54 or 36))
-            WindowTitle.Size = UDim2.fromOffset(TitleAvailable, 48)
+            if IsCompact then
+                local CompactSidebarWidth = math.max(40, WindowInfo.SidebarCompactWidth)
+                WindowTitle.Position = UDim2.fromOffset(CompactSidebarWidth + 14, 0)
+                WindowTitle.Size = UDim2.new(0, math.max(90, TitleWidth - CompactSidebarWidth - 14), 1, 0)
+            else
+                WindowTitle.Position = UDim2.fromOffset(0, 0)
+                WindowTitle.Size = UDim2.fromOffset(TitleAvailable, 48)
+            end
 
             SearchHolder.Size = UDim2.fromOffset(SearchWidth, 32)
             SearchHolder.Visible = not WindowInfo.DisableSearch
@@ -11349,9 +11359,12 @@ function Library:CreateWindow(WindowInfo)
                         ImageColor3 = "FontColor",
                         Position = UDim2.fromScale(0.5, 0.5),
                         Size = UDim2.fromOffset(17, 17),
+                        Rotation = 0,
+                        ScaleType = Enum.ScaleType.Fit,
                         Parent = Btn,
                     })
                     Library:ApplyLucideIcon(Img, BtnIcon)
+                    Img.Rotation = 0
                 end
 
                 Btn.MouseEnter:Connect(function()
@@ -11379,11 +11392,29 @@ function Library:CreateWindow(WindowInfo)
                     if WindowInfo.SupportCallback then
                         WindowInfo.SupportCallback()
                     elseif WindowInfo.SupportLink and setclipboard then
-                        local Copied = pcall(setclipboard, WindowInfo.SupportLink)
-                        if Copied then
+                        local Success, Content = pcall(function()
+                            return game:HttpGet(WindowInfo.SupportLink)
+                        end)
+
+                        if Success and typeof(Content) == "string" and Content ~= "" then
+                            local Copied = pcall(setclipboard, Content)
+                            if Copied then
+                                Library:Notify({
+                                    Title = "Discord",
+                                    Description = "discord.lua raw content copied!",
+                                    Time = 3,
+                                })
+                            else
+                                Library:Notify({
+                                    Title = "Discord",
+                                    Description = "Failed to copy discord.lua content.",
+                                    Time = 3,
+                                })
+                            end
+                        else
                             Library:Notify({
                                 Title = "Discord",
-                                Description = "Discord.lua link copied to clipboard!",
+                                Description = "Failed to fetch discord.lua from GitHub.",
                                 Time = 3,
                             })
                         end
@@ -11629,14 +11660,34 @@ function Library:CreateWindow(WindowInfo)
         assert(typeof(Link) == "string", "Expected string for support link")
         WindowInfo.SupportLink = Link
         WindowInfo.SupportCallback = function()
-            if setclipboard then
-                setclipboard(Link)
+            if not setclipboard then
                 Library:Notify({
                     Title = "Support",
-                    Description = "Support link copied to clipboard!",
+                    Description = "Clipboard is not available.",
                     Time = 3,
                 })
+                return
             end
+
+            local Success, Content = pcall(function()
+                return game:HttpGet(Link)
+            end)
+
+            if not Success or typeof(Content) ~= "string" or Content == "" then
+                Library:Notify({
+                    Title = "Support",
+                    Description = "Failed to fetch support content.",
+                    Time = 3,
+                })
+                return
+            end
+
+            local Copied = pcall(setclipboard, Content)
+            Library:Notify({
+                Title = "Support",
+                Description = Copied and "Raw content copied to clipboard!" or "Failed to copy raw content.",
+                Time = 3,
+            })
         end
     end
 
@@ -11917,14 +11968,80 @@ function Library:CreateWindow(WindowInfo)
             IsCompact = Window:GetSidebarWidth() <= WindowInfo.CompactWidthActivation
         end
 
-        -- Sidebar and title compact states are intentionally separate.
-        -- SidebarCompacted controls the sidebar width/state.
-        -- TitleCompacted only controls whether the title is hidden while compact.
-        WindowTitle.Visible = not (IsCompact and WindowInfo.TitleCompacted)
-        if not WindowInfo.Icon then
-            WindowIcon.Visible = IsCompact and WindowInfo.TitleCompacted
-        elseif WindowIcon then
-            WindowIcon.Visible = true
+        -- Compact header: keep the Veloria logo in a dedicated centered slot
+        -- inside the actual sidebar width. The old UIListLayout + UIPadding
+        -- placed the logo toward the side instead of the center.
+        local CompactSidebarWidth = math.max(40, WindowInfo.SidebarCompactWidth)
+
+        if IsCompact then
+            if WindowIcon and WindowIcon.Parent ~= TopBar then
+                WindowIcon.Parent = TopBar
+            end
+
+            if WindowTitle and WindowTitle.Parent ~= TopBar then
+                WindowTitle.Parent = TopBar
+            end
+
+            if WindowIcon then
+                WindowIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+                WindowIcon.Position = UDim2.fromOffset(CompactSidebarWidth * 0.5, 24)
+                WindowIcon.Size = WindowInfo.IconSize
+                WindowIcon.ZIndex = TopBar.ZIndex + 3
+                WindowIcon.Visible = WindowInfo.Icon ~= nil or WindowInfo.TitleCompacted
+
+                if WindowIcon:IsA("ImageLabel") then
+                    WindowIcon.Rotation = 0
+                    WindowIcon.ScaleType = Enum.ScaleType.Fit
+                end
+            end
+
+            if WindowTitle then
+                WindowTitle.AnchorPoint = Vector2.zero
+                WindowTitle.Position = UDim2.fromOffset(CompactSidebarWidth + 14, 0)
+                WindowTitle.Size = UDim2.new(0, math.max(90, TopbarTitleWidth - CompactSidebarWidth - 14), 1, 0)
+                WindowTitle.Visible = not WindowInfo.TitleCompacted
+                WindowTitle.ZIndex = TopBar.ZIndex + 2
+            end
+        else
+            if WindowIcon and WindowIcon.Parent ~= TitleHolder then
+                WindowIcon.Parent = TitleHolder
+            end
+
+            if WindowTitle and WindowTitle.Parent ~= TitleHolder then
+                WindowTitle.Parent = TitleHolder
+            end
+
+            if WindowIcon then
+                WindowIcon.AnchorPoint = Vector2.zero
+                WindowIcon.Position = UDim2.fromOffset(0, 0)
+                WindowIcon.Size = WindowInfo.IconSize
+                WindowIcon.ZIndex = TitleHolder.ZIndex
+                WindowIcon.Visible = true
+
+                if WindowIcon:IsA("ImageLabel") then
+                    WindowIcon.Rotation = 0
+                    WindowIcon.ScaleType = Enum.ScaleType.Fit
+                end
+            end
+
+            if WindowTitle then
+                local TitleAvailable = math.max(90, TopbarTitleWidth - (WindowInfo.Icon and WindowInfo.IconSize.X.Offset + 54 or 36))
+                WindowTitle.AnchorPoint = Vector2.zero
+                WindowTitle.Position = UDim2.fromOffset(0, 0)
+                WindowTitle.Size = UDim2.fromOffset(TitleAvailable, 48)
+                WindowTitle.Visible = true
+                WindowTitle.ZIndex = TitleHolder.ZIndex
+            end
+        end
+
+        -- Hard guard against an icon asset or another UI system changing rotation.
+        if WindowIcon and WindowIcon:IsA("ImageLabel") and not WindowIcon:GetAttribute("VeloriaRotationGuard") then
+            WindowIcon:SetAttribute("VeloriaRotationGuard", true)
+            Library:GiveSignal(WindowIcon:GetPropertyChangedSignal("Rotation"):Connect(function()
+                if WindowIcon.Rotation ~= 0 then
+                    WindowIcon.Rotation = 0
+                end
+            end))
         end
 
         for _, Button in Library.TabButtons do
@@ -11937,7 +12054,19 @@ function Library:CreateWindow(WindowInfo)
             Button.Padding.PaddingLeft = UDim.new(0, IsCompact and 6 or 12)
             Button.Padding.PaddingRight = UDim.new(0, IsCompact and 6 or 12)
             Button.Padding.PaddingTop = UDim.new(0, IsCompact and 6 or 11)
-            Button.Icon.SizeConstraint = Enum.SizeConstraint.RelativeYY or Enum.SizeConstraint.RelativeYY
+
+            Button.Icon.Size = UDim2.fromOffset(IsCompact and 28 or 18, IsCompact and 28 or 18)
+            Button.Icon.ScaleType = Enum.ScaleType.Fit
+            Button.Icon.Rotation = 0
+
+            if not Button.Icon:GetAttribute("VeloriaRotationGuard") then
+                Button.Icon:SetAttribute("VeloriaRotationGuard", true)
+                Library:GiveSignal(Button.Icon:GetPropertyChangedSignal("Rotation"):Connect(function()
+                    if Button.Icon.Parent and Button.Icon.Rotation ~= 0 then
+                        Button.Icon.Rotation = 0
+                    end
+                end))
+            end
         end
     end
 
@@ -13453,14 +13582,29 @@ function Library:CreateWindow(WindowInfo)
 
             if Icon then
                 TabIcon = New("ImageLabel", {
+                    AnchorPoint = Vector2.new(0.5, 0.5),
+                    BackgroundTransparency = 1,
                     ImageColor3 = Icon.Custom and "WhiteColor" or "AccentColor",
                     ImageTransparency = 0.5,
                     ScaleType = Enum.ScaleType.Fit,
-                    Size = UDim2.fromScale(1, 1),
-                    SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY,
+                    Size = UDim2.fromOffset(IsCompact and 28 or 18, IsCompact and 28 or 18),
+                    Position = UDim2.fromScale(0.5, 0.5),
+                    SizeConstraint = Enum.SizeConstraint.RelativeYY,
+                    Rotation = 0,
                     Parent = ButtonHolder,
                 })
+                New("UIAspectRatioConstraint", {
+                    AspectRatio = 1,
+                    Parent = TabIcon,
+                })
                 Library:ApplyLucideIcon(TabIcon, Icon)
+                TabIcon.Rotation = 0
+                TabIcon:SetAttribute("VeloriaRotationGuard", true)
+                Library:GiveSignal(TabIcon:GetPropertyChangedSignal("Rotation"):Connect(function()
+                    if TabIcon.Parent and TabIcon.Rotation ~= 0 then
+                        TabIcon.Rotation = 0
+                    end
+                end))
             end
 
             table.insert(Library.TabButtons, {
@@ -14489,6 +14633,10 @@ function Library:CreateWindow(WindowInfo)
                     ScaleType = Enum.ScaleType.Fit,
                     Rotation = 0,
                     Parent = OpenButton,
+                })
+                New("UIAspectRatioConstraint", {
+                    AspectRatio = 1,
+                    Parent = IconImage,
                 })
                 Library:ApplyLucideIcon(IconImage, Icon)
                 IconImage.Rotation = 0
