@@ -144,7 +144,6 @@ local UserInputService: UserInputService = cloneref(game:GetService("UserInputSe
 local TextService: TextService = cloneref(game:GetService("TextService"))
 local Teams: Teams = cloneref(game:GetService("Teams"))
 local TweenService: TweenService = cloneref(game:GetService("TweenService"))
-local HttpService: HttpService = cloneref(game:GetService("HttpService"))
 
 local getgenv = getgenv or function()
     return shared
@@ -167,9 +166,7 @@ local Tooltips = {}
 local BaseURL = "https://raw.githubusercontent.com/deividcomsono/Obsidian/refs/heads/main/"
 local CustomImageManager = {}
 
---// Veloria custom icon module \--
--- icon.lua me-return table: { Veloria = "rbxassetid://...", ... }
--- Modelnya sama seperti discord.lua: source diambil dari raw GitHub.
+--// Veloria custom icon aliases \--
 local CustomIconModuleURL = "https://raw.githubusercontent.com/RexzVeloria/VeloriaHubLiblary/refs/heads/main/icon.lua"
 local CustomIconModule = nil
 local CustomIconAliases = {}
@@ -1701,14 +1698,13 @@ local FetchIcons = false
 local Icons: IconModule | nil = nil
 
 function Library:GetIcon(IconName: string)
-    -- Keep the built-in Lucide module isolated from Veloria custom icons.
     if not FetchIcons or not Icons then
-        return nil
+        return
     end
 
     local Success, Icon = pcall(Icons.GetAsset, IconName)
     if not Success then
-        return nil
+        return
     end
 
     return Icon
@@ -1719,30 +1715,9 @@ function Library:GetCustomIcon(IconName: string): any
         return nil
     end
 
-    -- Veloria custom icon registry (icon.lua).
-    -- This is intentionally separate from the Lucide icon module so a
-    -- missing/broken custom registry can never prevent the library itself
-    -- from initializing.
-    if typeof(IconName) == "string" then
-        local Module = LoadCustomIconModule()
-        if Module then
-            local CustomValue = Module[IconName]
-
-            if type(CustomValue) == "number" then
-                CustomValue = "rbxassetid://" .. tostring(CustomValue)
-            end
-
-            if type(CustomValue) == "string" and CustomValue ~= "" then
-                return {
-                    Url = CustomValue,
-                    ImageRectOffset = Vector2.zero,
-                    ImageRectSize = Vector2.zero,
-                    Custom = true,
-                }
-            elseif type(CustomValue) == "table" and type(CustomValue.Url) == "string" then
-                return CustomValue
-            end
-        end
+    -- Named custom icon alias: "Verlo" -> 90384664719494
+    if typeof(IconName) == "string" and CustomIconAliases[IconName] then
+        IconName = CustomIconAliases[IconName]
     end
 
     if tonumber(IconName) then
@@ -1773,7 +1748,7 @@ function Library:GetCustomIcon(IconName: string): any
 end
 
 function Library:GetVerloIcon()
-    return Library:GetCustomIcon("Verlo") or Library:GetCustomIcon("Veloria")
+    return Library:GetCustomIcon("Verlo")
 end
 
 function Library:ApplyLucideIcon(ImageGui: any, Icon: any, Rotation: number?)
@@ -1809,586 +1784,6 @@ function Library:Validate(Table: { [string]: any }, Template: { [string]: any })
     end
 
     return Table
-end
-
-
---// Veloria Config System \\--
--- Configs are isolated by Universe/GameId + PlaceId.
--- A config saved in Game 1 can never be loaded by Game 2.
-local VeloriaConfig = {
-    Version = 1,
-    RootFolder = "VeloriaHub/Configs",
-    DefaultProfile = "default",
-}
-
-local function SafeConfigName(Name: any): string
-    Name = tostring(Name or VeloriaConfig.DefaultProfile)
-    Name = Name:gsub("[^%w%-%._]", "_")
-    Name = Name:gsub("_+", "_")
-
-    if Name == "" then
-        Name = VeloriaConfig.DefaultProfile
-    end
-
-    return Name:sub(1, 64)
-end
-
-local function EncodeConfigValue(Value: any, Seen: any?): (any, boolean)
-    local ValueType = typeof(Value)
-
-    if Value == nil then
-        return nil, true
-    elseif ValueType == "string" or ValueType == "boolean" then
-        return Value, true
-    elseif ValueType == "number" then
-        if Value ~= Value or Value == math.huge or Value == -math.huge then
-            return 0, true
-        end
-
-        return Value, true
-    elseif ValueType == "Color3" then
-        return {
-            __veloria_type = "Color3",
-            r = Value.R,
-            g = Value.G,
-            b = Value.B,
-        }, true
-    elseif ValueType == "EnumItem" then
-        return {
-            __veloria_type = "EnumItem",
-            enum = tostring(Value.EnumType),
-            name = Value.Name,
-        }, true
-    elseif ValueType == "table" then
-        Seen = Seen or {}
-
-        if Seen[Value] then
-            return nil, false
-        end
-
-        Seen[Value] = true
-
-        local Items = {}
-
-        for Key, EntryValue in pairs(Value) do
-            local EncodedKey, KeyOK = EncodeConfigValue(Key, Seen)
-            local EncodedValue, ValueOK = EncodeConfigValue(EntryValue, Seen)
-
-            if not KeyOK or not ValueOK then
-                Seen[Value] = nil
-                return nil, false
-            end
-
-            table.insert(Items, {
-                k = EncodedKey,
-                v = EncodedValue,
-            })
-        end
-
-        Seen[Value] = nil
-
-        return {
-            __veloria_type = "Table",
-            items = Items,
-        }, true
-    end
-
-    return nil, false
-end
-
-local function DecodeConfigValue(Value: any): any
-    if typeof(Value) ~= "table" then
-        return Value
-    end
-
-    if Value.__veloria_type == "Color3" then
-        return Color3.new(
-            tonumber(Value.r) or 1,
-            tonumber(Value.g) or 1,
-            tonumber(Value.b) or 1
-        )
-    elseif Value.__veloria_type == "EnumItem" then
-        local EnumName = tostring(Value.enum or ""):gsub("^Enum%.", "")
-        local EnumTable = Enum[EnumName]
-
-        if EnumTable and Value.name then
-            return EnumTable[Value.name]
-        end
-
-        return nil
-    elseif Value.__veloria_type == "Table" then
-        local Result = {}
-
-        if typeof(Value.items) == "table" then
-            for _, Pair in ipairs(Value.items) do
-                if typeof(Pair) == "table" then
-                    local Key = DecodeConfigValue(Pair.k)
-                    local EntryValue = DecodeConfigValue(Pair.v)
-
-                    if Key ~= nil then
-                        Result[Key] = EntryValue
-                    end
-                end
-            end
-        end
-
-        return Result
-    end
-
-    local Result = {}
-
-    for Key, EntryValue in pairs(Value) do
-        Result[Key] = DecodeConfigValue(EntryValue)
-    end
-
-    return Result
-end
-
-local function GetPlayerByName(Name: any)
-    if typeof(Name) ~= "string" then
-        return nil
-    end
-
-    for _, Player in Players:GetPlayers() do
-        if Player.Name == Name then
-            return Player
-        end
-    end
-
-    return nil
-end
-
-local function GetTeamByName(Name: any)
-    if typeof(Name) ~= "string" then
-        return nil
-    end
-
-    for _, Team in Teams:GetTeams() do
-        if Team.Name == Name then
-            return Team
-        end
-    end
-
-    return nil
-end
-
-local function EncodeDropdownValue(Dropdown, Value: any): (any, boolean)
-    if Dropdown.SpecialType == "Player" then
-        if Dropdown.Multi then
-            local Result = {}
-
-            if typeof(Value) == "table" then
-                for Player, Active in pairs(Value) do
-                    if Active then
-                        if typeof(Player) == "Instance" and Player:IsA("Player") then
-                            Result[Player.Name] = true
-                        elseif typeof(Player) == "string" then
-                            Result[Player] = true
-                        else
-                            return nil, false
-                        end
-                    end
-                end
-            end
-
-            return Result, true
-        end
-
-        if Value == nil then
-            return nil, true
-        elseif typeof(Value) == "Instance" and Value:IsA("Player") then
-            return Value.Name, true
-        elseif typeof(Value) == "string" then
-            return Value, true
-        end
-
-        return nil, false
-    elseif Dropdown.SpecialType == "Team" then
-        if Dropdown.Multi then
-            local Result = {}
-
-            if typeof(Value) == "table" then
-                for Team, Active in pairs(Value) do
-                    if Active then
-                        if typeof(Team) == "Instance" and Team:IsA("Team") then
-                            Result[Team.Name] = true
-                        elseif typeof(Team) == "string" then
-                            Result[Team] = true
-                        else
-                            return nil, false
-                        end
-                    end
-                end
-            end
-
-            return Result, true
-        end
-
-        if Value == nil then
-            return nil, true
-        elseif typeof(Value) == "Instance" and Value:IsA("Team") then
-            return Value.Name, true
-        elseif typeof(Value) == "string" then
-            return Value, true
-        end
-
-        return nil, false
-    end
-
-    return EncodeConfigValue(Value)
-end
-
-local function DecodeDropdownValue(Dropdown, Value: any): any
-    if Dropdown.SpecialType == "Player" then
-        if Dropdown.Multi then
-            local Result = {}
-
-            if typeof(Value) == "table" then
-                for Name, Active in pairs(Value) do
-                    if Active then
-                        local Player = GetPlayerByName(Name)
-
-                        if Player then
-                            Result[Player] = true
-                        end
-                    end
-                end
-            end
-
-            return Result
-        end
-
-        return GetPlayerByName(Value)
-    elseif Dropdown.SpecialType == "Team" then
-        if Dropdown.Multi then
-            local Result = {}
-
-            if typeof(Value) == "table" then
-                for Name, Active in pairs(Value) do
-                    if Active then
-                        local Team = GetTeamByName(Name)
-
-                        if Team then
-                            Result[Team] = true
-                        end
-                    end
-                end
-            end
-
-            return Result
-        end
-
-        return GetTeamByName(Value)
-    end
-
-    return DecodeConfigValue(Value)
-end
-
-function VeloriaConfig:GetGameFolder(): string
-    local GameId = SafeConfigName(tostring(game.GameId or 0))
-    local PlaceId = SafeConfigName(tostring(game.PlaceId or 0))
-
-    return self.RootFolder .. "/" .. GameId .. "/" .. PlaceId
-end
-
-function VeloriaConfig:GetFilePath(Profile: string?): string
-    return self:GetGameFolder() .. "/" .. SafeConfigName(Profile) .. ".cfg"
-end
-
-function VeloriaConfig:EnsureFolders(): (boolean, string?)
-    if not (isfolder and makefolder) then
-        return false, "Filesystem functions are unavailable."
-    end
-
-    local Folders = {
-        "VeloriaHub",
-        self.RootFolder,
-        self.RootFolder .. "/" .. SafeConfigName(tostring(game.GameId or 0)),
-        self:GetGameFolder(),
-    }
-
-    for _, Folder in Folders do
-        local OK = pcall(function()
-            if not isfolder(Folder) then
-                makefolder(Folder)
-            end
-        end)
-
-        if not OK then
-            return false, "Failed to create config folder."
-        end
-    end
-
-    return true, nil
-end
-
-function VeloriaConfig:BuildSnapshot()
-    local Snapshot = {
-        version = self.Version,
-        game_id = tostring(game.GameId or 0),
-        place_id = tostring(game.PlaceId or 0),
-        game_name = tostring(game.Name or "Unknown"),
-        saved_at = os.time(),
-        options = {},
-    }
-
-    local Added = {}
-
-    local function AddOption(Idx, Option)
-        if Added[Idx] or not Option or Option.Destroyed then
-            return
-        end
-
-        local Type = Option.Type
-        local Supported =
-            Type == "Toggle"
-            or Type == "Input"
-            or Type == "Slider"
-            or Type == "Dropdown"
-            or Type == "ColorPicker"
-            or Type == "KeyPicker"
-
-        if not Supported then
-            return
-        end
-
-        local Data
-
-        if Type == "ColorPicker" then
-            local EncodedColor, ColorOK = EncodeConfigValue(Option.Value)
-
-            if not ColorOK then
-                return
-            end
-
-            Data = {
-                value = EncodedColor,
-                transparency = tonumber(Option.Transparency) or 0,
-            }
-        elseif Type == "KeyPicker" then
-            local EncodedKey, KeyOK = EncodeConfigValue(Option.Value)
-            local EncodedModifiers, ModifiersOK = EncodeConfigValue(Option.Modifiers)
-
-            if not KeyOK or not ModifiersOK then
-                return
-            end
-
-            Data = {
-                value = EncodedKey,
-                mode = tostring(Option.Mode or "Toggle"),
-                modifiers = EncodedModifiers,
-            }
-        elseif Type == "Dropdown" then
-            local EncodedValue, ValueOK = EncodeDropdownValue(Option, Option.Value)
-
-            if not ValueOK then
-                return
-            end
-
-            local EncodedFinal, FinalOK = EncodeConfigValue(EncodedValue)
-
-            if not FinalOK then
-                return
-            end
-
-            Data = {
-                value = EncodedFinal,
-            }
-        else
-            local EncodedValue, ValueOK = EncodeConfigValue(Option.Value)
-
-            if not ValueOK then
-                return
-            end
-
-            Data = {
-                value = EncodedValue,
-            }
-        end
-
-        table.insert(Snapshot.options, {
-            idx = tostring(Idx),
-            type = Type,
-            data = Data,
-        })
-
-        Added[Idx] = true
-    end
-
-    for Idx, Toggle in pairs(Toggles) do
-        AddOption(Idx, Toggle)
-    end
-
-    for Idx, Option in pairs(Options) do
-        AddOption(Idx, Option)
-    end
-
-    return Snapshot
-end
-
-function VeloriaConfig:Save(Profile: string?): (boolean, string)
-    local Ready, FolderError = self:EnsureFolders()
-
-    if not Ready then
-        return false, FolderError or "Config folder is unavailable."
-    end
-
-    local Snapshot = self:BuildSnapshot()
-    local OK, Encoded = pcall(function()
-        return HttpService:JSONEncode(Snapshot)
-    end)
-
-    if not OK or typeof(Encoded) ~= "string" then
-        return false, "Failed to encode config."
-    end
-
-    local Path = self:GetFilePath(Profile)
-    local WriteOK, WriteError = pcall(function()
-        writefile(Path, Encoded)
-    end)
-
-    if not WriteOK then
-        return false, tostring(WriteError or "Failed to write config.")
-    end
-
-    return true, Path
-end
-
-function VeloriaConfig:ApplySnapshot(Snapshot): (boolean, string)
-    if typeof(Snapshot) ~= "table" then
-        return false, "Invalid config data."
-    end
-
-    local CurrentGameId = tostring(game.GameId or 0)
-    local CurrentPlaceId = tostring(game.PlaceId or 0)
-
-    if tostring(Snapshot.game_id or "") ~= CurrentGameId
-        or tostring(Snapshot.place_id or "") ~= CurrentPlaceId
-    then
-        return false, "This config belongs to another game/place."
-    end
-
-    local Applied = 0
-    local Skipped = 0
-
-    for _, Entry in ipairs(Snapshot.options or {}) do
-        local Idx = tostring(Entry.idx or "")
-        local Target = Options[Idx] or Toggles[Idx]
-
-        if Target and not Target.Destroyed and typeof(Entry.data) == "table" then
-            local Success = pcall(function()
-                local Type = Entry.type
-                local Data = Entry.data
-
-                if Type ~= Target.Type then
-                    error("type mismatch")
-                end
-
-                if Type == "ColorPicker" then
-                    local Color = DecodeConfigValue(Data.value)
-
-                    if typeof(Color) ~= "Color3" then
-                        error("invalid color")
-                    end
-
-                    Target:SetValueRGB(Color, tonumber(Data.transparency) or 0)
-
-                elseif Type == "KeyPicker" then
-                    local Value = DecodeConfigValue(Data.value)
-                    local Modifiers = DecodeConfigValue(Data.modifiers)
-
-                    Target:SetValue({
-                        tostring(Value or "None"),
-                        tostring(Data.mode or Target.Mode or "Toggle"),
-                        typeof(Modifiers) == "table" and Modifiers or {},
-                    })
-
-                elseif Type == "Dropdown" then
-                    local Value = DecodeDropdownValue(Target, DecodeConfigValue(Data.value))
-
-                    if Value == nil and Data.value ~= nil and not Target.Multi then
-                        error("dropdown value is unavailable")
-                    end
-
-                    Target:SetValue(Value)
-
-                elseif Type == "Input" then
-                    Target:SetValue(tostring(DecodeConfigValue(Data.value) or ""))
-
-                elseif Type == "Toggle" then
-                    Target:SetValue(DecodeConfigValue(Data.value) == true)
-
-                elseif Type == "Slider" then
-                    local NumberValue = tonumber(DecodeConfigValue(Data.value))
-
-                    if NumberValue == nil then
-                        error("invalid slider value")
-                    end
-
-                    Target:SetValue(NumberValue)
-
-                else
-                    error("unsupported config type")
-                end
-            end)
-
-            if Success then
-                Applied += 1
-            else
-                Skipped += 1
-            end
-        else
-            Skipped += 1
-        end
-    end
-
-    return true, string.format(
-        "Loaded %d settings%s.",
-        Applied,
-        Skipped > 0 and string.format(" (%d skipped)", Skipped) or ""
-    )
-end
-
-function VeloriaConfig:Load(Profile: string?): (boolean, string)
-    if not (readfile and isfile) then
-        return false, "Filesystem functions are unavailable."
-    end
-
-    local Path = self:GetFilePath(Profile)
-
-    if not isfile(Path) then
-        return false, "No config saved for this game yet."
-    end
-
-    local ReadOK, Raw = pcall(function()
-        return readfile(Path)
-    end)
-
-    if not ReadOK or typeof(Raw) ~= "string" then
-        return false, "Failed to read config."
-    end
-
-    local DecodeOK, Snapshot = pcall(function()
-        return HttpService:JSONDecode(Raw)
-    end)
-
-    if not DecodeOK then
-        return false, "Config file is corrupted or invalid."
-    end
-
-    return self:ApplySnapshot(Snapshot)
-end
-
-function Library:SaveConfig(Profile: string?)
-    return VeloriaConfig:Save(Profile)
-end
-
-function Library:LoadConfig(Profile: string?)
-    return VeloriaConfig:Load(Profile)
-end
-
-function Library:GetConfigPath(Profile: string?)
-    return VeloriaConfig:GetFilePath(Profile)
 end
 
 --// Creator Functions \\--
@@ -11446,8 +10841,234 @@ function Library:Notify(...)
     return Data
 end
 
+-- Veloria Hub — Config System + Settings Tab
+-- Paste SETELAH library load, SEBELUM CreateWindow
+-- Requires: writefile, readfile, isfile, listfiles, isfolder, makefolder
+-- delfile/deletefile untuk delete config
+
+local HttpService = game:GetService("HttpService")
+local delfile = delfile or deletefile or nil
+
+local CFG_ROOT = "Veloria/configs/"
+
+-- helpers
+local function ensuredir(p)
+    if not (isfolder and makefolder) then return end
+    local cur = ""
+    for _, s in p:split("/") do
+        if s ~= "" then
+            cur ..= s
+            if not isfolder(cur) then makefolder(cur) end
+            cur ..= "/"
+        end
+    end
+end
+
+local function gamepath()
+    return CFG_ROOT .. tostring(game.PlaceId) .. "/"
+end
+
+local function listconfigs()
+    local p = gamepath()
+    if not (isfolder and listfiles and isfolder(p)) then return {} end
+    local out = {}
+    for _, f in listfiles(p) do
+        local n = f:match("([^/\\]+)%.json$")
+        if n then out[#out + 1] = n end
+    end
+    table.sort(out)
+    return out
+end
+
+-- serialise
+local function ser(o)
+    local t = o.Type
+    if t == "Toggle" or t == "Slider" or t == "Input" then
+        return o.Value
+    elseif t == "Dropdown" then
+        if o.Multi then
+            local a = {}
+            for k, v in o.Value do if v then a[#a + 1] = k end end
+            return a
+        end
+        return o.Value
+    elseif t == "ColorPicker" then
+        return { r = o.Value.R, g = o.Value.G, b = o.Value.B, a = o.Transparency or 0 }
+    elseif t == "KeyPicker" then
+        return { key = o.Value, mode = o.Mode, mods = o.Modifiers }
+    end
+end
+
+-- apply
+local function applyval(o, v)
+    if v == nil then return end
+    pcall(function()
+        local t = o.Type
+        if t == "Toggle" or t == "Slider" or t == "Input" then
+            o:SetValue(v)
+        elseif t == "Dropdown" then
+            if o.Multi and type(v) == "table" then
+                local tbl = {}
+                for _, k in v do tbl[k] = true end
+                o:SetValue(tbl)
+            else
+                o:SetValue(v)
+            end
+        elseif t == "ColorPicker" and type(v) == "table" then
+            o:SetValueRGB(Color3.new(v.r, v.g, v.b), v.a or 0)
+        elseif t == "KeyPicker" and type(v) == "table" then
+            o:SetValue({ v.key, v.mode, v.mods or {} })
+        end
+    end)
+end
+
+-- ────────────────────────────────────────────────────────────
+-- Public API
+-- ────────────────────────────────────────────────────────────
+
+function Library:SaveConfig(name)
+    if not writefile then return false, "writefile unavailable" end
+    ensuredir(gamepath())
+    local data = {}
+    for idx, t in Library.Toggles do data["t_" .. idx] = t.Value end
+    for idx, o in Library.Options  do data["o_" .. idx] = ser(o)   end
+    local ok, s = pcall(HttpService.JSONEncode, HttpService, data)
+    if not ok then return false, "encode failed" end
+    local ok2, e = pcall(writefile, gamepath() .. name .. ".json", s)
+    return ok2, e
+end
+
+function Library:LoadConfig(name)
+    if not readfile then return false, "readfile unavailable" end
+    local path = gamepath() .. name .. ".json"
+    if not (isfile and isfile(path)) then return false, "not found" end
+    local ok, raw = pcall(readfile, path)
+    if not ok then return false, "read error" end
+    local ok2, data = pcall(HttpService.JSONDecode, HttpService, raw)
+    if not ok2 then return false, "decode failed" end
+    for idx, t in Library.Toggles do applyval(t, data["t_" .. idx]) end
+    for idx, o in Library.Options  do applyval(o, data["o_" .. idx]) end
+    return true
+end
+
+function Library:DeleteConfig(name)
+    if not delfile then return false end
+    local p = gamepath() .. name .. ".json"
+    if not (isfile and isfile(p)) then return false end
+    return pcall(delfile, p)
+end
+
+-- ────────────────────────────────────────────────────────────
+-- Settings Tab — panggil SETELAH semua tab lain dibuat
+-- ExtraSetup(tab) opsional: tambah groupbox custom (misal Auto Farm)
+-- ────────────────────────────────────────────────────────────
+
+function Library:CreateSettingsTab(Window, ExtraSetup)
+    -- Order 999999 = selalu paling bawah, apapun tab lain
+    local Tab = Window:AddTab({ Name = "Settings", Icon = "settings", Order = 999999 })
+
+    -- ── Config (kiri) ───────────────────────────────────────
+    local CBox = Tab:AddGroupbox({ Name = "Config", Side = "left" })
+
+    CBox:AddInput("__vcfg_name", {
+        Text        = "Config Name",
+        Placeholder = "my_config",
+        Default     = "",
+        AllowEmpty  = false,
+        EmptyReset  = "",
+    })
+
+    -- Save button
+    CBox:AddButton({
+        Text = "Save Config",
+        Callback = function()
+            local raw = Library.Options["__vcfg_name"] and Library.Options["__vcfg_name"].Value or ""
+            local name = raw:gsub("[^%w%-_]", "_"):gsub("^_+", ""):gsub("_+$", "")
+            if name == "" then
+                Library:Notify({ Title = "Config", Description = "Enter a config name first.", Time = 3 })
+                return
+            end
+            local ok, err = Library:SaveConfig(name)
+            Library:Notify({
+                Title       = "Config",
+                Description = ok and ('Saved "' .. name .. '" ✓') or ("Failed: " .. tostring(err)),
+                Time        = 3,
+            })
+            if ok and Library.Options["__vcfg_list"] then
+                Library.Options["__vcfg_list"]:SetValues(listconfigs())
+            end
+        end,
+    })
+
+    -- Dropdown daftar config (per PlaceId, game lain ga keliatan)
+    CBox:AddDropdown("__vcfg_list", {
+        Text      = "Saved Configs",
+        Values    = listconfigs(),
+        AllowNull = true,
+    })
+
+    -- Load + Delete side by side
+    local LBtn = CBox:AddButton({
+        Text = "Load",
+        Callback = function()
+            local name = Library.Options["__vcfg_list"] and Library.Options["__vcfg_list"].Value
+            if not name then
+                Library:Notify({ Title = "Config", Description = "Select a config first.", Time = 3 })
+                return
+            end
+            local ok, err = Library:LoadConfig(name)
+            Library:Notify({
+                Title       = "Config",
+                Description = ok and ('Loaded "' .. name .. '" ✓') or ("Failed: " .. tostring(err)),
+                Time        = 3,
+            })
+        end,
+    })
+    LBtn:AddButton({
+        Text        = "Delete",
+        Risky       = true,
+        DoubleClick = true,
+        Callback    = function()
+            local name = Library.Options["__vcfg_list"] and Library.Options["__vcfg_list"].Value
+            if not name then
+                Library:Notify({ Title = "Config", Description = "Select a config first.", Time = 3 })
+                return
+            end
+            Library:DeleteConfig(name)
+            Library:Notify({ Title = "Config", Description = 'Deleted "' .. name .. '"', Time = 3 })
+            Library.Options["__vcfg_list"]:SetValues(listconfigs())
+        end,
+    })
+
+    -- ── Interface (kanan) ───────────────────────────────────
+    local IBox = Tab:AddGroupbox({ Name = "Interface", Side = "right" })
+
+    IBox:AddDropdown("__vui_dpi", {
+        Text     = "DPI Scale",
+        Values   = { "75", "100", "125", "150", "175", "200" },
+        Default  = "100",
+        Callback = function(v)
+            Library:SetDPIScale(tonumber(v) or 100)
+        end,
+    })
+
+    IBox:AddToggle("__vui_cursor", {
+        Text     = "Custom Cursor",
+        Default  = Library.ShowCustomCursor,
+        Callback = function(v)
+            Library.ShowCustomCursor = v
+        end,
+    })
+
+    -- Panggil ExtraSetup kalau ada (untuk Auto Farm dll)
+    if typeof(ExtraSetup) == "function" then
+        ExtraSetup(Tab)
+    end
+
+    return Tab
+end
+
 function Library:CreateWindow(WindowInfo)
-    local UpdateTopbarLayout
     WindowInfo = Library:Validate(WindowInfo, Templates.Window)
     local ViewportSize: Vector2 = workspace.CurrentCamera.ViewportSize
     if RunService:IsStudio() and ViewportSize.X <= 5 and ViewportSize.Y <= 5 then
@@ -11539,8 +11160,8 @@ function Library:CreateWindow(WindowInfo)
     local TopbarButtonCount = 3
     local TopbarRightInset = 12
     local TopbarButtonSize = 32
-    local TopbarTitleMinWidth = 160
-    local TopbarTitlePreferredWidth = math.max(220, InitialLeftWidth - 20)
+    local TopbarTitleMinWidth = 170
+    local TopbarTitlePreferredWidth = math.max(270, InitialLeftWidth + 40)
     local TopbarTitleWidth = TopbarTitlePreferredWidth
 
     local function GetTopbarMetrics(Width)
@@ -11808,18 +11429,15 @@ function Library:CreateWindow(WindowInfo)
             Parent = RightWrapper,
         })
 
-        local InitialSearchWidth = WindowInfo.DisableSearch and 0 or WindowInfo.SearchbarSize.X.Offset
-        local InitialRightWidth = math.max(0, WindowInfo.Size.X.Offset - TopbarTitleWidth - TopbarRightInset - 8)
-        local InitialFixedRightWidth = InitialSearchWidth
-            + (TopbarButtonSize * TopbarButtonCount)
-            + (TopbarGap * 3)
-        local InitialTabInfoWidth = math.max(0, InitialRightWidth - InitialFixedRightWidth)
-
         CurrentTabInfo = New("Frame", {
-            Size = UDim2.fromOffset(InitialTabInfoWidth, 32),
+            Size = UDim2.fromScale(0, 1),
             Visible = false,
             BackgroundTransparency = 1,
             Parent = RightWrapper,
+        })
+        New("UIFlexItem", {
+            FlexMode = Enum.UIFlexMode.Grow,
+            Parent = CurrentTabInfo,
         })
 
         New("UIListLayout", {
@@ -11843,8 +11461,6 @@ function Library:CreateWindow(WindowInfo)
             AutomaticSize = Enum.AutomaticSize.Y,
             Text = "",
             TextSize = 14,
-            TextWrapped = false,
-            TextTruncate = Enum.TextTruncate.AtEnd,
             TextXAlignment = Enum.TextXAlignment.Left,
             Parent = CurrentTabInfo,
         })
@@ -11854,9 +11470,8 @@ function Library:CreateWindow(WindowInfo)
             Size = UDim2.fromScale(1, 0),
             AutomaticSize = Enum.AutomaticSize.Y,
             Text = "",
-            TextWrapped = false,
-            TextTruncate = Enum.TextTruncate.AtEnd,
-            TextSize = 13,
+            TextWrapped = true,
+            TextSize = 14,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextTransparency = 0.5,
             Parent = CurrentTabInfo,
@@ -11932,7 +11547,7 @@ function Library:CreateWindow(WindowInfo)
         end
 
         --// Responsive topbar sizing \--
-        UpdateTopbarLayout = function()
+        local function UpdateTopbarLayout()
             if not MainFrame or not MainFrame.Parent then
                 return
             end
@@ -11959,13 +11574,6 @@ function Library:CreateWindow(WindowInfo)
             SearchHolder.Size = UDim2.fromOffset(SearchWidth, 32)
             SearchHolder.Visible = not WindowInfo.DisableSearch
             SearchBox.Size = UDim2.fromScale(1, 1)
-
-            local RightWidth = math.max(0, Width - TitleWidth - TopbarRightInset - 8)
-            local FixedRightWidth = (WindowInfo.DisableSearch and 0 or SearchWidth)
-                + (ButtonSize * TopbarButtonCount)
-                + (Gap * 3)
-            local InfoWidth = math.max(0, RightWidth - FixedRightWidth)
-            CurrentTabInfo.Size = UDim2.fromOffset(InfoWidth, 32)
 
             for _, Child in ipairs(RightWrapper:GetChildren()) do
                 if Child:IsA("TextButton") and Child ~= nil then
@@ -12737,11 +12345,11 @@ function Library:CreateWindow(WindowInfo)
 
         DividerLine.Position = UDim2.fromOffset(Width, 0)
 
-        -- Keep topbar geometry in one place; the previous hard-coded 57px
-        -- subtraction could collapse the tab-info area after sidebar changes.
+        -- Title topbar is independent from the sidebar width.
+        TitleHolder.Size = UDim2.new(0, TopbarTitleWidth, 1, 0)
+        RightWrapper.Size = UDim2.new(1, -TopbarTitleWidth - 57 - 1, 1, -16)
         Tabs.Size = UDim2.new(0, Width, 1, -70)
         Container.Size = UDim2.new(1, -Width - 1, 1, -70)
-        UpdateTopbarLayout()
 
         if WindowInfo.EnableCompacting then
             ApplyCompact()
@@ -12768,33 +12376,6 @@ function Library:CreateWindow(WindowInfo)
         if IsDefaultSearchbarSize then
             SearchBox.Size = WindowInfo.SearchbarSize
         end
-    end
-
-    --// Veloria: Settings is always kept as the last visible sidebar tab.
-    -- This is recalculated whenever a normal/key tab is added, and when
-    -- Settings:SetOrder() is called, so later-created tabs cannot push it up.
-    local function ReorderSettingsTab()
-        local SettingsTab = Library.Tabs["Settings"]
-        if not SettingsTab or not SettingsTab.Button then
-            return
-        end
-
-        if not SettingsTab.Button.Parent then
-            return
-        end
-
-        local MaxOrder = 0
-
-        for _, Tab in pairs(Library.Tabs) do
-            if typeof(Tab) == "table" and Tab ~= SettingsTab and Tab.Button and Tab.Button.Parent then
-                local CurrentOrder = tonumber(Tab.Button.LayoutOrder) or 0
-                if CurrentOrder > MaxOrder then
-                    MaxOrder = CurrentOrder
-                end
-            end
-        end
-
-        SettingsTab.Button.LayoutOrder = MaxOrder + 1
     end
 
     function Window:AddTab(...)
@@ -13678,8 +13259,7 @@ function Library:CreateWindow(WindowInfo)
                     Size = UDim2.fromScale(1, 0),
                     Text = Info.Name,
                     TextSize = 15,
-                    TextWrapped = false,
-                    TextTruncate = Enum.TextTruncate.AtEnd,
+                    TextWrapped = true,
                     TextXAlignment = Enum.TextXAlignment.Left,
                     Parent = TextsFrame,
                 })
@@ -13965,27 +13545,11 @@ function Library:CreateWindow(WindowInfo)
 
         --// Deprecated - Use Tab:AddGroupbox instead.
         function Tab:AddLeftGroupbox(Name, IconName, Visible, Collapsed, DisableCollapsing)
-            if typeof(Name) == "table" then
-                local Info = Name
-                Name = Info.Name
-                IconName = Info.IconName
-                Visible = Info.Visible
-                Collapsed = Info.Collapsed
-                DisableCollapsing = Info.DisableCollapsing
-            end
             return Tab:AddGroupbox({ Side = 1, Name = Name, IconName = IconName, Visible = Visible, Collapsed = Collapsed, DisableCollapsing = DisableCollapsing })
         end
 
         --// Deprecated - Use Tab:AddGroupbox instead.
         function Tab:AddRightGroupbox(Name, IconName, Visible, Collapsed, DisableCollapsing)
-            if typeof(Name) == "table" then
-                local Info = Name
-                Name = Info.Name
-                IconName = Info.IconName
-                Visible = Info.Visible
-                Collapsed = Info.Collapsed
-                DisableCollapsing = Info.DisableCollapsing
-            end
             return Tab:AddGroupbox({ Side = 2, Name = Name, IconName = IconName, Visible = Visible, Collapsed = Collapsed, DisableCollapsing = DisableCollapsing })
         end
 
@@ -14093,15 +13657,8 @@ function Library:CreateWindow(WindowInfo)
         end
 
         function Tab:SetOrder(NewOrder: number)
-            if Name == "Settings" then
-                -- Settings is intentionally pinned to the bottom.
-                ReorderSettingsTab()
-                return
-            end
-
             Order = NewOrder
             TabButton.LayoutOrder = Order
-            ReorderSettingsTab()
         end
 
         function Tab:SetTooltip(Text: string?)
@@ -14187,7 +13744,6 @@ function Library:CreateWindow(WindowInfo)
         TabButton.MouseButton1Click:Connect(Tab.Show)
 
         Library.Tabs[Name] = Tab
-        ReorderSettingsTab()
 
         return Tab
     end
@@ -14469,15 +14025,8 @@ function Library:CreateWindow(WindowInfo)
         end
 
         function Tab:SetOrder(NewOrder: number)
-            if Name == "Settings" then
-                -- Key tabs cannot own Settings, but keep the guard symmetric.
-                ReorderSettingsTab()
-                return
-            end
-
             Order = NewOrder
             TabButton.LayoutOrder = Order
-            ReorderSettingsTab()
         end
 
         function Tab:RefreshSides() end
@@ -14613,7 +14162,6 @@ function Library:CreateWindow(WindowInfo)
         setmetatable(Tab, BaseGroupbox)
 
         Library.Tabs[Name] = Tab
-        ReorderSettingsTab()
 
         return Tab
     end
@@ -15437,135 +14985,6 @@ function Library:CreateWindow(WindowInfo)
         pcall(function()
             Window:SetBackgroundImage(WindowInfo.BackgroundImage)
         end)
-    end
-
-    --// Veloria Settings / Config tab
-    -- Always available and isolated by GameId + PlaceId.
-    if not Library.Tabs["Settings"] then
-        local SettingsTab = Window:AddTab({
-            Name = "Settings",
-            Icon = "settings",
-            Description = "Configuration and Veloria Hub settings",
-            Tooltip = "Save and load this game's configuration",
-            Order = 9999,
-        })
-
-        Window.SettingsTab = SettingsTab
-        Window.ConfigTab = SettingsTab
-
-        local ConfigBox = SettingsTab:AddLeftGroupbox({
-            Name = "Configuration",
-            IconName = "save",
-        })
-
-        ConfigBox:AddLabel({
-            Text = string.format(
-                "Game: %s\nPlaceId: %s",
-                tostring(game.Name or "Unknown"),
-                tostring(game.PlaceId or 0)
-            ),
-            DoesWrap = true,
-            Size = 13,
-        })
-
-        ConfigBox:AddLabel({
-            Text = "Config: " .. VeloriaConfig:GetFilePath(VeloriaConfig.DefaultProfile),
-            DoesWrap = true,
-            Size = 12,
-        })
-
-        local StatusLabel = ConfigBox:AddLabel({
-            Text = "Status: Ready",
-            DoesWrap = true,
-            Size = 12,
-        })
-
-        ConfigBox:AddButton({
-            Text = "Save Config",
-            Tooltip = "Save only this game's config",
-            Func = function()
-                local Success, Message = Library:SaveConfig(VeloriaConfig.DefaultProfile)
-
-                if Success then
-                    StatusLabel:SetText("Status: Saved successfully.")
-
-                    Library:Notify({
-                        Title = "Config Saved",
-                        Description = "Saved for this game only.",
-                        Time = 3,
-                    })
-                else
-                    StatusLabel:SetText("Status: Save failed — " .. tostring(Message))
-
-                    Library:Notify({
-                        Title = "Config Error",
-                        Description = tostring(Message),
-                        Time = 4,
-                    })
-                end
-            end,
-        })
-
-        ConfigBox:AddButton({
-            Text = "Load Config",
-            Tooltip = "Load only this game's config",
-            Func = function()
-                local Success, Message = Library:LoadConfig(VeloriaConfig.DefaultProfile)
-
-                if Success then
-                    StatusLabel:SetText("Status: Loaded successfully.")
-
-                    Library:Notify({
-                        Title = "Config Loaded",
-                        Description = "Loaded for this game only.",
-                        Time = 3,
-                    })
-                else
-                    StatusLabel:SetText("Status: Load failed — " .. tostring(Message))
-
-                    Library:Notify({
-                        Title = "Config Error",
-                        Description = tostring(Message),
-                        Time = 4,
-                    })
-                end
-            end,
-        })
-
-        ConfigBox:AddLabel({
-            Text = "Configs are separated by GameId + PlaceId. Game 2 can never load Game 1's config.",
-            DoesWrap = true,
-            Size = 12,
-        })
-
-        local SettingsBox = SettingsTab:AddRightGroupbox({
-            Name = "Library",
-            IconName = "settings",
-        })
-
-        SettingsBox:AddLabel({
-            Text = "Veloria Hub\nConfig system: per-game\nProfile: default",
-            DoesWrap = true,
-            Size = 13,
-        })
-
-        SettingsBox:AddToggle("VeloriaConfigAutoSave", {
-            Text = "Auto Save",
-            Default = false,
-            Tooltip = "Save this game's config when the library unloads.",
-        })
-
-        Library:OnUnload(function()
-            local AutoSaveToggle = Toggles["VeloriaConfigAutoSave"]
-
-            if AutoSaveToggle and AutoSaveToggle.Value == true then
-                pcall(function()
-                    Library:SaveConfig(VeloriaConfig.DefaultProfile)
-                end)
-            end
-        end)
-
-        Window.VeloriaConfigTab = SettingsTab
     end
 
     return Window
