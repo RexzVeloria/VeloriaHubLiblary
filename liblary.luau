@@ -167,6 +167,9 @@ local Tooltips = {}
 local BaseURL = "https://raw.githubusercontent.com/deividcomsono/Obsidian/refs/heads/main/"
 local CustomImageManager = {}
 
+--// Veloria custom icon module \--
+-- icon.lua me-return table: { Veloria = "rbxassetid://...", ... }
+-- Modelnya sama seperti discord.lua: source diambil dari raw GitHub.
 local CustomIconModuleURL = "https://raw.githubusercontent.com/RexzVeloria/VeloriaHubLiblary/refs/heads/main/icon.lua"
 local CustomIconModule = nil
 local CustomIconAliases = {}
@@ -13961,24 +13964,12 @@ function Library:CreateWindow(WindowInfo)
         end
 
         --// Deprecated - Use Tab:AddGroupbox instead.
-        -- Supports both legacy (Name, IconName, ...) and table-style ({ Name = ..., IconName = ... }) calls.
         function Tab:AddLeftGroupbox(Name, IconName, Visible, Collapsed, DisableCollapsing)
-            if typeof(Name) == "table" then
-                local Info = Name
-                Info.Side = 1
-                return Tab:AddGroupbox(Info)
-            end
             return Tab:AddGroupbox({ Side = 1, Name = Name, IconName = IconName, Visible = Visible, Collapsed = Collapsed, DisableCollapsing = DisableCollapsing })
         end
 
         --// Deprecated - Use Tab:AddGroupbox instead.
-        -- Supports both legacy (Name, IconName, ...) and table-style ({ Name = ..., IconName = ... }) calls.
         function Tab:AddRightGroupbox(Name, IconName, Visible, Collapsed, DisableCollapsing)
-            if typeof(Name) == "table" then
-                local Info = Name
-                Info.Side = 2
-                return Tab:AddGroupbox(Info)
-            end
             return Tab:AddGroupbox({ Side = 2, Name = Name, IconName = IconName, Visible = Visible, Collapsed = Collapsed, DisableCollapsing = DisableCollapsing })
         end
 
@@ -14167,7 +14158,8 @@ function Library:CreateWindow(WindowInfo)
             Tab.TooltipTable = Library:AddTooltip(Tooltip, nil, TabButton)
         end
 
-        if not Library.ActiveTab then
+        -- Don't auto-select Settings as the first open tab
+        if not Library.ActiveTab and Name ~= "Settings" then
             Tab:Show()
         end
 
@@ -15438,11 +15430,16 @@ function Library:CreateWindow(WindowInfo)
         local SettingsTab = Window:AddTab({
             Name = "Settings",
             Icon = "settings",
+            Description = "Configuration and Veloria Hub settings",
+            Tooltip = "Save and load this game's configuration",
             Order = 9999,
         })
 
         Window.SettingsTab = SettingsTab
         Window.ConfigTab = SettingsTab
+
+        -- Active config profile (can be changed via input)
+        local CurrentProfile = VeloriaConfig.DefaultProfile
 
         local ConfigBox = SettingsTab:AddLeftGroupbox({
             Name = "Configuration",
@@ -15459,8 +15456,8 @@ function Library:CreateWindow(WindowInfo)
             Size = 13,
         })
 
-        ConfigBox:AddLabel({
-            Text = "Config: " .. VeloriaConfig:GetFilePath(VeloriaConfig.DefaultProfile),
+        local ConfigPathLabel = ConfigBox:AddLabel({
+            Text = "Config: " .. VeloriaConfig:GetFilePath(CurrentProfile),
             DoesWrap = true,
             Size = 12,
         })
@@ -15471,18 +15468,36 @@ function Library:CreateWindow(WindowInfo)
             Size = 12,
         })
 
+        -- Custom config name
+        local ConfigNameInput = ConfigBox:AddInput("VeloriaConfigName", {
+            Text = "Config Name",
+            Default = CurrentProfile,
+            Placeholder = "default",
+            Finished = true,
+            ClearTextOnFocus = false,
+        })
+
+        ConfigNameInput:OnChanged(function(Value)
+            local Clean = SafeConfigName(Value)
+            if Clean == "" then
+                Clean = VeloriaConfig.DefaultProfile
+            end
+            CurrentProfile = Clean
+            ConfigPathLabel:SetText("Config: " .. VeloriaConfig:GetFilePath(CurrentProfile))
+        end)
+
         ConfigBox:AddButton({
             Text = "Save Config",
-            Tooltip = "Save only this game's config",
+            Tooltip = "Save only this game's config under the current name",
             Func = function()
-                local Success, Message = Library:SaveConfig(VeloriaConfig.DefaultProfile)
+                local Success, Message = Library:SaveConfig(CurrentProfile)
 
                 if Success then
                     StatusLabel:SetText("Status: Saved successfully.")
 
                     Library:Notify({
                         Title = "Config Saved",
-                        Description = "Saved for this game only.",
+                        Description = "Saved as \"" .. CurrentProfile .. "\" for this game only.",
                         Time = 3,
                     })
                 else
@@ -15499,16 +15514,16 @@ function Library:CreateWindow(WindowInfo)
 
         ConfigBox:AddButton({
             Text = "Load Config",
-            Tooltip = "Load only this game's config",
+            Tooltip = "Load only this game's config under the current name",
             Func = function()
-                local Success, Message = Library:LoadConfig(VeloriaConfig.DefaultProfile)
+                local Success, Message = Library:LoadConfig(CurrentProfile)
 
                 if Success then
                     StatusLabel:SetText("Status: Loaded successfully.")
 
                     Library:Notify({
                         Title = "Config Loaded",
-                        Description = "Loaded for this game only.",
+                        Description = "Loaded \"" .. CurrentProfile .. "\" for this game only.",
                         Time = 3,
                     })
                 else
@@ -15524,18 +15539,19 @@ function Library:CreateWindow(WindowInfo)
         })
 
         ConfigBox:AddLabel({
-            Text = "Configs are separated by GameId + PlaceId. Game 2 can never load Game 1's config.",
+            Text = "Configs are separated by GameId + PlaceId. Different names = different files.",
             DoesWrap = true,
             Size = 12,
         })
 
+        -- Right side: Background + Library options
         local SettingsBox = SettingsTab:AddRightGroupbox({
             Name = "Library",
             IconName = "settings",
         })
 
         SettingsBox:AddLabel({
-            Text = "Veloria Hub\nConfig system: per-game\nProfile: default",
+            Text = "Veloria Hub\nConfig system: per-game",
             DoesWrap = true,
             Size = 13,
         })
@@ -15546,12 +15562,80 @@ function Library:CreateWindow(WindowInfo)
             Tooltip = "Save this game's config when the library unloads.",
         })
 
+        -- Custom Background URL
+        SettingsBox:AddLabel({
+            Text = "Background Image",
+            Size = 13,
+        })
+
+        local BgInput = SettingsBox:AddInput("VeloriaBackgroundURL", {
+            Text = "Background URL",
+            Default = "",
+            Placeholder = "https://... or rbxassetid://...",
+            Finished = true,
+            ClearTextOnFocus = false,
+        })
+
+        SettingsBox:AddButton({
+            Text = "Apply Background",
+            Tooltip = "Set window background from URL or rbxassetid",
+            Func = function()
+                local Url = BgInput.Value or ""
+                if typeof(Url) ~= "string" or Url == "" then
+                    Library:Notify({
+                        Title = "Background",
+                        Description = "Masukkan URL / rbxassetid dulu.",
+                        Time = 3,
+                    })
+                    return
+                end
+
+                local Ok = pcall(function()
+                    Window:SetBackgroundImage(Url)
+                end)
+
+                if Ok then
+                    Library:Notify({
+                        Title = "Background",
+                        Description = "Background berhasil diganti.",
+                        Time = 3,
+                    })
+                else
+                    Library:Notify({
+                        Title = "Background",
+                        Description = "Gagal menerapkan background.",
+                        Time = 4,
+                    })
+                end
+            end,
+        })
+
+        SettingsBox:AddButton({
+            Text = "Reset Background",
+            Tooltip = "Kembalikan background default Veloria",
+            Func = function()
+                local DefaultBg = WindowInfo.BackgroundImage
+                    or Library.Scheme.BackgroundImage
+                    or ""
+                if DefaultBg ~= "" then
+                    pcall(function()
+                        Window:SetBackgroundImage(DefaultBg)
+                    end)
+                end
+                Library:Notify({
+                    Title = "Background",
+                    Description = "Background direset ke default.",
+                    Time = 3,
+                })
+            end,
+        })
+
         Library:OnUnload(function()
             local AutoSaveToggle = Toggles["VeloriaConfigAutoSave"]
 
             if AutoSaveToggle and AutoSaveToggle.Value == true then
                 pcall(function()
-                    Library:SaveConfig(VeloriaConfig.DefaultProfile)
+                    Library:SaveConfig(CurrentProfile)
                 end)
             end
         end)
