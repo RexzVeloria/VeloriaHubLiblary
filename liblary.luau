@@ -11447,7 +11447,6 @@ function Library:Notify(...)
 end
 
 function Library:CreateWindow(WindowInfo)
-    local UpdateTopbarLayout
     WindowInfo = Library:Validate(WindowInfo, Templates.Window)
     local ViewportSize: Vector2 = workspace.CurrentCamera.ViewportSize
     if RunService:IsStudio() and ViewportSize.X <= 5 and ViewportSize.Y <= 5 then
@@ -11932,7 +11931,7 @@ function Library:CreateWindow(WindowInfo)
         end
 
         --// Responsive topbar sizing \--
-        UpdateTopbarLayout = function()
+        local function UpdateTopbarLayout()
             if not MainFrame or not MainFrame.Parent then
                 return
             end
@@ -13964,12 +13963,24 @@ function Library:CreateWindow(WindowInfo)
         end
 
         --// Deprecated - Use Tab:AddGroupbox instead.
+        -- Supports both legacy (Name, IconName, ...) and table-style ({ Name = ..., IconName = ... }) calls.
         function Tab:AddLeftGroupbox(Name, IconName, Visible, Collapsed, DisableCollapsing)
+            if typeof(Name) == "table" then
+                local Info = Name
+                Info.Side = 1
+                return Tab:AddGroupbox(Info)
+            end
             return Tab:AddGroupbox({ Side = 1, Name = Name, IconName = IconName, Visible = Visible, Collapsed = Collapsed, DisableCollapsing = DisableCollapsing })
         end
 
         --// Deprecated - Use Tab:AddGroupbox instead.
+        -- Supports both legacy (Name, IconName, ...) and table-style ({ Name = ..., IconName = ... }) calls.
         function Tab:AddRightGroupbox(Name, IconName, Visible, Collapsed, DisableCollapsing)
+            if typeof(Name) == "table" then
+                local Info = Name
+                Info.Side = 2
+                return Tab:AddGroupbox(Info)
+            end
             return Tab:AddGroupbox({ Side = 2, Name = Name, IconName = IconName, Visible = Visible, Collapsed = Collapsed, DisableCollapsing = DisableCollapsing })
         end
 
