@@ -11483,8 +11483,8 @@ function Library:CreateWindow(WindowInfo)
     local TopbarButtonCount = 3
     local TopbarRightInset = 12
     local TopbarButtonSize = 32
-    local TopbarTitleMinWidth = 170
-    local TopbarTitlePreferredWidth = math.max(270, InitialLeftWidth + 40)
+    local TopbarTitleMinWidth = 160
+    local TopbarTitlePreferredWidth = math.max(220, InitialLeftWidth - 20)
     local TopbarTitleWidth = TopbarTitlePreferredWidth
 
     local function GetTopbarMetrics(Width)
@@ -11752,15 +11752,18 @@ function Library:CreateWindow(WindowInfo)
             Parent = RightWrapper,
         })
 
+        local InitialSearchWidth = WindowInfo.DisableSearch and 0 or WindowInfo.SearchbarSize.X.Offset
+        local InitialRightWidth = math.max(0, WindowInfo.Size.X.Offset - TopbarTitleWidth - TopbarRightInset - 8)
+        local InitialFixedRightWidth = InitialSearchWidth
+            + (TopbarButtonSize * TopbarButtonCount)
+            + (TopbarGap * 3)
+        local InitialTabInfoWidth = math.max(0, InitialRightWidth - InitialFixedRightWidth)
+
         CurrentTabInfo = New("Frame", {
-            Size = UDim2.fromScale(0, 1),
+            Size = UDim2.fromOffset(InitialTabInfoWidth, 32),
             Visible = false,
             BackgroundTransparency = 1,
             Parent = RightWrapper,
-        })
-        New("UIFlexItem", {
-            FlexMode = Enum.UIFlexMode.Grow,
-            Parent = CurrentTabInfo,
         })
 
         New("UIListLayout", {
@@ -11784,6 +11787,8 @@ function Library:CreateWindow(WindowInfo)
             AutomaticSize = Enum.AutomaticSize.Y,
             Text = "",
             TextSize = 14,
+            TextWrapped = false,
+            TextTruncate = Enum.TextTruncate.AtEnd,
             TextXAlignment = Enum.TextXAlignment.Left,
             Parent = CurrentTabInfo,
         })
@@ -11793,8 +11798,9 @@ function Library:CreateWindow(WindowInfo)
             Size = UDim2.fromScale(1, 0),
             AutomaticSize = Enum.AutomaticSize.Y,
             Text = "",
-            TextWrapped = true,
-            TextSize = 14,
+            TextWrapped = false,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+            TextSize = 13,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextTransparency = 0.5,
             Parent = CurrentTabInfo,
@@ -11897,6 +11903,13 @@ function Library:CreateWindow(WindowInfo)
             SearchHolder.Size = UDim2.fromOffset(SearchWidth, 32)
             SearchHolder.Visible = not WindowInfo.DisableSearch
             SearchBox.Size = UDim2.fromScale(1, 1)
+
+            local RightWidth = math.max(0, Width - TitleWidth - TopbarRightInset - 8)
+            local FixedRightWidth = (WindowInfo.DisableSearch and 0 or SearchWidth)
+                + (ButtonSize * TopbarButtonCount)
+                + (Gap * 3)
+            local InfoWidth = math.max(0, RightWidth - FixedRightWidth)
+            CurrentTabInfo.Size = UDim2.fromOffset(InfoWidth, 32)
 
             for _, Child in ipairs(RightWrapper:GetChildren()) do
                 if Child:IsA("TextButton") and Child ~= nil then
@@ -12668,11 +12681,11 @@ function Library:CreateWindow(WindowInfo)
 
         DividerLine.Position = UDim2.fromOffset(Width, 0)
 
-        -- Title topbar is independent from the sidebar width.
-        TitleHolder.Size = UDim2.new(0, TopbarTitleWidth, 1, 0)
-        RightWrapper.Size = UDim2.new(1, -TopbarTitleWidth - 57 - 1, 1, -16)
+        -- Keep topbar geometry in one place; the previous hard-coded 57px
+        -- subtraction could collapse the tab-info area after sidebar changes.
         Tabs.Size = UDim2.new(0, Width, 1, -70)
         Container.Size = UDim2.new(1, -Width - 1, 1, -70)
+        UpdateTopbarLayout()
 
         if WindowInfo.EnableCompacting then
             ApplyCompact()
@@ -13609,7 +13622,8 @@ function Library:CreateWindow(WindowInfo)
                     Size = UDim2.fromScale(1, 0),
                     Text = Info.Name,
                     TextSize = 15,
-                    TextWrapped = true,
+                    TextWrapped = false,
+                    TextTruncate = Enum.TextTruncate.AtEnd,
                     TextXAlignment = Enum.TextXAlignment.Left,
                     Parent = TextsFrame,
                 })
