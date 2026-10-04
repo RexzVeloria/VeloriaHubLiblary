@@ -13964,12 +13964,24 @@ function Library:CreateWindow(WindowInfo)
         end
 
         --// Deprecated - Use Tab:AddGroupbox instead.
+        -- Supports both legacy (Name, IconName, ...) and table-style ({ Name = ..., IconName = ... }) calls.
         function Tab:AddLeftGroupbox(Name, IconName, Visible, Collapsed, DisableCollapsing)
+            if typeof(Name) == "table" then
+                local Info = Name
+                Info.Side = 1
+                return Tab:AddGroupbox(Info)
+            end
             return Tab:AddGroupbox({ Side = 1, Name = Name, IconName = IconName, Visible = Visible, Collapsed = Collapsed, DisableCollapsing = DisableCollapsing })
         end
 
         --// Deprecated - Use Tab:AddGroupbox instead.
+        -- Supports both legacy (Name, IconName, ...) and table-style ({ Name = ..., IconName = ... }) calls.
         function Tab:AddRightGroupbox(Name, IconName, Visible, Collapsed, DisableCollapsing)
+            if typeof(Name) == "table" then
+                local Info = Name
+                Info.Side = 2
+                return Tab:AddGroupbox(Info)
+            end
             return Tab:AddGroupbox({ Side = 2, Name = Name, IconName = IconName, Visible = Visible, Collapsed = Collapsed, DisableCollapsing = DisableCollapsing })
         end
 
@@ -15430,8 +15442,6 @@ function Library:CreateWindow(WindowInfo)
         local SettingsTab = Window:AddTab({
             Name = "Settings",
             Icon = "settings",
-            Description = "Configuration and Veloria Hub settings",
-            Tooltip = "Save and load this game's configuration",
             Order = 9999,
         })
 
@@ -15494,7 +15504,6 @@ function Library:CreateWindow(WindowInfo)
 
                 if Success then
                     StatusLabel:SetText("Status: Saved successfully.")
-
                     Library:Notify({
                         Title = "Config Saved",
                         Description = "Saved as \"" .. CurrentProfile .. "\" for this game only.",
@@ -15502,7 +15511,6 @@ function Library:CreateWindow(WindowInfo)
                     })
                 else
                     StatusLabel:SetText("Status: Save failed — " .. tostring(Message))
-
                     Library:Notify({
                         Title = "Config Error",
                         Description = tostring(Message),
@@ -15520,7 +15528,6 @@ function Library:CreateWindow(WindowInfo)
 
                 if Success then
                     StatusLabel:SetText("Status: Loaded successfully.")
-
                     Library:Notify({
                         Title = "Config Loaded",
                         Description = "Loaded \"" .. CurrentProfile .. "\" for this game only.",
@@ -15528,7 +15535,6 @@ function Library:CreateWindow(WindowInfo)
                     })
                 else
                     StatusLabel:SetText("Status: Load failed — " .. tostring(Message))
-
                     Library:Notify({
                         Title = "Config Error",
                         Description = tostring(Message),
@@ -15544,7 +15550,6 @@ function Library:CreateWindow(WindowInfo)
             Size = 12,
         })
 
-        -- Right side: Background + Library options
         local SettingsBox = SettingsTab:AddRightGroupbox({
             Name = "Library",
             IconName = "settings",
