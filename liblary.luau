@@ -14594,7 +14594,8 @@ function Library:CreateWindow(WindowInfo)
             Tab.TooltipTable = Library:AddTooltip(Tooltip, nil, TabButton)
         end
 
-        if not Library.ActiveTab then
+        -- Don't auto-select Settings as the first open tab
+        if not Library.ActiveTab and Name ~= "Settings" then
             Tab:Show()
         end
 
@@ -15483,7 +15484,7 @@ function Library:CreateWindow(WindowInfo)
             Text = "Config Name",
             Default = CurrentProfile,
             Placeholder = "default",
-            Finished = true,
+            Finished = false,
             ClearTextOnFocus = false,
         })
 
@@ -15500,6 +15501,15 @@ function Library:CreateWindow(WindowInfo)
             Text = "Save Config",
             Tooltip = "Save only this game's config under the current name",
             Func = function()
+                local Opt = Options["VeloriaConfigName"]
+                if Opt and typeof(Opt.Value) == "string" and Opt.Value ~= "" then
+                    CurrentProfile = SafeConfigName(Opt.Value)
+                    if CurrentProfile == "" then
+                        CurrentProfile = VeloriaConfig.DefaultProfile
+                    end
+                    ConfigPathLabel:SetText("Config: " .. VeloriaConfig:GetFilePath(CurrentProfile))
+                end
+
                 local Success, Message = Library:SaveConfig(CurrentProfile)
 
                 if Success then
@@ -15524,6 +15534,15 @@ function Library:CreateWindow(WindowInfo)
             Text = "Load Config",
             Tooltip = "Load only this game's config under the current name",
             Func = function()
+                local Opt = Options["VeloriaConfigName"]
+                if Opt and typeof(Opt.Value) == "string" and Opt.Value ~= "" then
+                    CurrentProfile = SafeConfigName(Opt.Value)
+                    if CurrentProfile == "" then
+                        CurrentProfile = VeloriaConfig.DefaultProfile
+                    end
+                    ConfigPathLabel:SetText("Config: " .. VeloriaConfig:GetFilePath(CurrentProfile))
+                end
+
                 local Success, Message = Library:LoadConfig(CurrentProfile)
 
                 if Success then
@@ -15577,7 +15596,7 @@ function Library:CreateWindow(WindowInfo)
             Text = "Background URL",
             Default = "",
             Placeholder = "https://... or rbxassetid://...",
-            Finished = true,
+            Finished = false,
             ClearTextOnFocus = false,
         })
 
@@ -15585,8 +15604,16 @@ function Library:CreateWindow(WindowInfo)
             Text = "Apply Background",
             Tooltip = "Set window background from URL or rbxassetid",
             Func = function()
-                local Url = BgInput.Value or ""
-                if typeof(Url) ~= "string" or Url == "" then
+                local Opt = Options["VeloriaBackgroundURL"]
+                local Url = ""
+                if Opt and typeof(Opt.Value) == "string" then
+                    Url = Opt.Value
+                elseif BgInput and typeof(BgInput.Value) == "string" then
+                    Url = BgInput.Value
+                end
+                Url = tostring(Url or ""):gsub("^%s+", ""):gsub("%s+$", "")
+
+                if Url == "" then
                     Library:Notify({
                         Title = "Background",
                         Description = "Masukkan URL / rbxassetid dulu.",
@@ -15595,7 +15622,7 @@ function Library:CreateWindow(WindowInfo)
                     return
                 end
 
-                local Ok = pcall(function()
+                local Ok, Err = pcall(function()
                     Window:SetBackgroundImage(Url)
                 end)
 
@@ -15608,7 +15635,7 @@ function Library:CreateWindow(WindowInfo)
                 else
                     Library:Notify({
                         Title = "Background",
-                        Description = "Gagal menerapkan background.",
+                        Description = "Gagal: " .. tostring(Err),
                         Time = 4,
                     })
                 end
