@@ -167,11 +167,44 @@ local Tooltips = {}
 local BaseURL = "https://raw.githubusercontent.com/deividcomsono/Obsidian/refs/heads/main/"
 local CustomImageManager = {}
 
---// Veloria custom icon aliases \--
-local CustomIconAliases = {
-    Veloria = "rbxassetid://99716974769256",
-    veloria = "rbxassetid://99716974769256",
-}
+--// Veloria custom icon module \--
+-- icon.lua me-return table: { Veloria = "rbxassetid://...", ... }
+-- Modelnya sama seperti discord.lua: source diambil dari raw GitHub.
+local CustomIconModuleURL = "https://raw.githubusercontent.com/RexzVeloria/VeloriaHubLiblary/refs/heads/main/icon.lua"
+local CustomIconModule = nil
+local CustomIconAliases = {}
+
+local function LoadCustomIconModule()
+    if CustomIconModule then
+        return CustomIconModule
+    end
+
+    local Success, Source = pcall(function()
+        return game:HttpGet(CustomIconModuleURL)
+    end)
+    if not Success or type(Source) ~= "string" or Source == "" then
+        return nil
+    end
+
+    local CompileSuccess, Module = pcall(loadstring, Source)
+    if not CompileSuccess or type(Module) ~= "function" then
+        return nil
+    end
+
+    local ExecuteSuccess, Data = pcall(Module)
+    if not ExecuteSuccess or type(Data) ~= "table" then
+        return nil
+    end
+
+    CustomIconModule = Data
+    for Name, Value in pairs(Data) do
+        if type(Name) == "string" and (type(Value) == "string" or type(Value) == "number") then
+            CustomIconAliases[Name] = Value
+        end
+    end
+
+    return CustomIconModule
+end
 
 local CustomImageManagerAssets = {
     TransparencyTexture = {
@@ -1668,13 +1701,14 @@ local FetchIcons = false
 local Icons: IconModule | nil = nil
 
 function Library:GetIcon(IconName: string)
+    -- Keep the built-in Lucide module isolated from Veloria custom icons.
     if not FetchIcons or not Icons then
-        return
+        return nil
     end
 
     local Success, Icon = pcall(Icons.GetAsset, IconName)
     if not Success then
-        return
+        return nil
     end
 
     return Icon
@@ -1685,9 +1719,30 @@ function Library:GetCustomIcon(IconName: string): any
         return nil
     end
 
-    -- Named custom icon alias: "Verlo" -> 90384664719494
-    if typeof(IconName) == "string" and CustomIconAliases[IconName] then
-        IconName = CustomIconAliases[IconName]
+    -- Veloria custom icon registry (icon.lua).
+    -- This is intentionally separate from the Lucide icon module so a
+    -- missing/broken custom registry can never prevent the library itself
+    -- from initializing.
+    if typeof(IconName) == "string" then
+        local Module = LoadCustomIconModule()
+        if Module then
+            local CustomValue = Module[IconName]
+
+            if type(CustomValue) == "number" then
+                CustomValue = "rbxassetid://" .. tostring(CustomValue)
+            end
+
+            if type(CustomValue) == "string" and CustomValue ~= "" then
+                return {
+                    Url = CustomValue,
+                    ImageRectOffset = Vector2.zero,
+                    ImageRectSize = Vector2.zero,
+                    Custom = true,
+                }
+            elseif type(CustomValue) == "table" and type(CustomValue.Url) == "string" then
+                return CustomValue
+            end
+        end
     end
 
     if tonumber(IconName) then
@@ -1718,7 +1773,7 @@ function Library:GetCustomIcon(IconName: string): any
 end
 
 function Library:GetVerloIcon()
-    return Library:GetCustomIcon("Verlo")
+    return Library:GetCustomIcon("Verlo") or Library:GetCustomIcon("Veloria")
 end
 
 function Library:ApplyLucideIcon(ImageGui: any, Icon: any, Rotation: number?)
