@@ -2095,6 +2095,39 @@ function VeloriaConfig:GetFilePath(Profile: string?): string
     return self:GetGameFolder() .. "/" .. SafeConfigName(Profile) .. ".cfg"
 end
 
+function VeloriaConfig:ListProfiles(): { string }
+    local Profiles = {}
+    local Folder = self:GetGameFolder()
+
+    if listfiles and isfolder and isfolder(Folder) then
+        local Ok, Files = pcall(listfiles, Folder)
+        if Ok and typeof(Files) == "table" then
+            for _, FilePath in ipairs(Files) do
+                local Name = tostring(FilePath):gsub("\\", "/"):match("([^/]+)%.cfg$")
+                if Name and Name ~= "" then
+                    table.insert(Profiles, Name)
+                end
+            end
+        end
+    end
+
+    table.sort(Profiles)
+
+    -- Always include default so dropdown is never empty
+    local HasDefault = false
+    for _, Name in ipairs(Profiles) do
+        if Name == self.DefaultProfile then
+            HasDefault = true
+            break
+        end
+    end
+    if not HasDefault then
+        table.insert(Profiles, 1, self.DefaultProfile)
+    end
+
+    return Profiles
+end
+
 function VeloriaConfig:EnsureFolders(): (boolean, string?)
     if not (isfolder and makefolder) then
         return false, "Filesystem functions are unavailable."
@@ -15431,6 +15464,13 @@ function Library:CreateWindow(WindowInfo)
     Library.Window = Window
 
     --// Veloria default background: apply configured URL automatically
+    -- Keep a frozen copy so Reset Background can restore the real default
+    local OriginalBackgroundImage = WindowInfo.BackgroundImage
+    if typeof(OriginalBackgroundImage) ~= "string" or OriginalBackgroundImage == "" then
+        OriginalBackgroundImage = Library.Scheme.BackgroundImage or ""
+    end
+    Window.OriginalBackgroundImage = OriginalBackgroundImage
+
     if typeof(WindowInfo.BackgroundImage) == "string" and WindowInfo.BackgroundImage ~= "" then
         pcall(function()
             Window:SetBackgroundImage(WindowInfo.BackgroundImage)
@@ -15449,8 +15489,11 @@ function Library:CreateWindow(WindowInfo)
         Window.SettingsTab = SettingsTab
         Window.ConfigTab = SettingsTab
 
-        -- Active config profile (can be changed via input)
         local CurrentProfile = VeloriaConfig.DefaultProfile
+
+        local function RefreshProfileList()
+            return VeloriaConfig:ListProfiles()
+        end
 
         local ConfigBox = SettingsTab:AddLeftGroupbox({
             Name = "Configuration",
@@ -15479,44 +15522,85 @@ function Library:CreateWindow(WindowInfo)
             Size = 12,
         })
 
-        -- Custom config name
-        local ConfigNameInput = ConfigBox:AddInput("VeloriaConfigName", {
-            Text = "Config Name",
+        -- Dropdown: pilih config yang sudah ada (bukan nebak nama)
+        local ProfileDropdown = ConfigBox:AddDropdown("VeloriaConfigProfile", {
+            Text = "Select Config",
+            Values = RefreshProfileList(),
             Default = CurrentProfile,
-            Placeholder = "default",
+            Multi = false,
+            Searchable = true,
+        })
+
+        ProfileDropdown:OnChanged(function(Value)
+            if typeof(Value) == "string" and Value ~= "" then
+                CurrentProfile = SafeConfigName(Value)
+                ConfigPathLabel:SetText("Config: " .. VeloriaConfig:GetFilePath(CurrentProfile))
+            end
+        end)
+
+        -- Input untuk buat / rename config baru
+        local NewNameInput = ConfigBox:AddInput("VeloriaConfigNewName", {
+            Text = "New Config Name",
+            Default = "",
+            Placeholder = "nama config baru...",
             Finished = false,
             ClearTextOnFocus = false,
         })
 
-        ConfigNameInput:OnChanged(function(Value)
-            local Clean = SafeConfigName(Value)
-            if Clean == "" then
-                Clean = VeloriaConfig.DefaultProfile
-            end
-            CurrentProfile = Clean
-            ConfigPathLabel:SetText("Config: " .. VeloriaConfig:GetFilePath(CurrentProfile))
-        end)
+        ConfigBox:AddButton({
+            Text = "Use New Name",
+            Tooltip = "Pakai nama baru di input untuk Save berikutnya",
+            Func = function()
+                local Opt = Options["VeloriaConfigNewName"]
+                local Raw = (Opt and Opt.Value) or ""
+                local Clean = SafeConfigName(Raw)
+                if Clean == "" then
+                    Library:Notify({
+                        Title = "Config",
+                        Description = "Isi nama config baru dulu.",
+                        Time = 3,
+                    })
+                    return
+                end
+
+                CurrentProfile = Clean
+                ConfigPathLabel:SetText("Config: " .. VeloriaConfig:GetFilePath(CurrentProfile))
+
+                local List = RefreshProfileList()
+                local Found = false
+                for _, N in ipairs(List) do
+                    if N == Clean then Found = true break end
+                end
+                if not Found then
+                    table.insert(List, Clean)
+                    table.sort(List)
+                end
+                ProfileDropdown:SetValues(List)
+                ProfileDropdown:SetValue(Clean)
+
+                Library:Notify({
+                    Title = "Config",
+                    Description = "Nama aktif: " .. Clean,
+                    Time = 3,
+                })
+            end,
+        })
 
         ConfigBox:AddButton({
             Text = "Save Config",
-            Tooltip = "Save only this game's config under the current name",
+            Tooltip = "Save config dengan nama yang dipilih",
             Func = function()
-                local Opt = Options["VeloriaConfigName"]
-                if Opt and typeof(Opt.Value) == "string" and Opt.Value ~= "" then
-                    CurrentProfile = SafeConfigName(Opt.Value)
-                    if CurrentProfile == "" then
-                        CurrentProfile = VeloriaConfig.DefaultProfile
-                    end
-                    ConfigPathLabel:SetText("Config: " .. VeloriaConfig:GetFilePath(CurrentProfile))
-                end
-
                 local Success, Message = Library:SaveConfig(CurrentProfile)
 
                 if Success then
-                    StatusLabel:SetText("Status: Saved successfully.")
+                    StatusLabel:SetText("Status: Saved — " .. CurrentProfile)
+                    local List = RefreshProfileList()
+                    ProfileDropdown:SetValues(List)
+                    pcall(function() ProfileDropdown:SetValue(CurrentProfile) end)
+
                     Library:Notify({
                         Title = "Config Saved",
-                        Description = "Saved as \"" .. CurrentProfile .. "\" for this game only.",
+                        Description = "Saved as \"" .. CurrentProfile .. "\"",
                         Time = 3,
                     })
                 else
@@ -15532,24 +15616,15 @@ function Library:CreateWindow(WindowInfo)
 
         ConfigBox:AddButton({
             Text = "Load Config",
-            Tooltip = "Load only this game's config under the current name",
+            Tooltip = "Load config yang dipilih di dropdown",
             Func = function()
-                local Opt = Options["VeloriaConfigName"]
-                if Opt and typeof(Opt.Value) == "string" and Opt.Value ~= "" then
-                    CurrentProfile = SafeConfigName(Opt.Value)
-                    if CurrentProfile == "" then
-                        CurrentProfile = VeloriaConfig.DefaultProfile
-                    end
-                    ConfigPathLabel:SetText("Config: " .. VeloriaConfig:GetFilePath(CurrentProfile))
-                end
-
                 local Success, Message = Library:LoadConfig(CurrentProfile)
 
                 if Success then
-                    StatusLabel:SetText("Status: Loaded successfully.")
+                    StatusLabel:SetText("Status: Loaded — " .. CurrentProfile)
                     Library:Notify({
                         Title = "Config Loaded",
-                        Description = "Loaded \"" .. CurrentProfile .. "\" for this game only.",
+                        Description = "Loaded \"" .. CurrentProfile .. "\"",
                         Time = 3,
                     })
                 else
@@ -15563,8 +15638,18 @@ function Library:CreateWindow(WindowInfo)
             end,
         })
 
+        ConfigBox:AddButton({
+            Text = "Refresh List",
+            Tooltip = "Refresh daftar config di folder game ini",
+            Func = function()
+                local List = RefreshProfileList()
+                ProfileDropdown:SetValues(List)
+                StatusLabel:SetText("Status: List refreshed (" .. tostring(#List) .. ")")
+            end,
+        })
+
         ConfigBox:AddLabel({
-            Text = "Configs are separated by GameId + PlaceId. Different names = different files.",
+            Text = "Configs per GameId + PlaceId. Pilih dari dropdown, atau buat nama baru.",
             DoesWrap = true,
             Size = 12,
         })
@@ -15583,10 +15668,9 @@ function Library:CreateWindow(WindowInfo)
         SettingsBox:AddToggle("VeloriaConfigAutoSave", {
             Text = "Auto Save",
             Default = false,
-            Tooltip = "Save this game's config when the library unloads.",
+            Tooltip = "Save config aktif saat library unload.",
         })
 
-        -- Custom Background URL
         SettingsBox:AddLabel({
             Text = "Background Image",
             Size = 13,
@@ -15646,19 +15730,41 @@ function Library:CreateWindow(WindowInfo)
             Text = "Reset Background",
             Tooltip = "Kembalikan background default Veloria",
             Func = function()
-                local DefaultBg = WindowInfo.BackgroundImage
+                local DefaultBg = Window.OriginalBackgroundImage
                     or Library.Scheme.BackgroundImage
                     or ""
-                if DefaultBg ~= "" then
-                    pcall(function()
-                        Window:SetBackgroundImage(DefaultBg)
-                    end)
+
+                if typeof(DefaultBg) ~= "string" or DefaultBg == "" then
+                    Library:Notify({
+                        Title = "Background",
+                        Description = "Default background tidak tersedia.",
+                        Time = 3,
+                    })
+                    return
                 end
-                Library:Notify({
-                    Title = "Background",
-                    Description = "Background direset ke default.",
-                    Time = 3,
-                })
+
+                local Ok, Err = pcall(function()
+                    Window:SetBackgroundImage(DefaultBg)
+                end)
+
+                if Ok then
+                    -- clear input so user sees it reset
+                    local Opt = Options["VeloriaBackgroundURL"]
+                    if Opt and Opt.SetValue then
+                        pcall(function() Opt:SetValue("") end)
+                    end
+                    Library:Notify({
+                        Title = "Background",
+                        Description = "Background direset ke default.",
+                        Time = 3,
+                    })
+                else
+                    Library:Notify({
+                        Title = "Background",
+                        Description = "Gagal reset: " .. tostring(Err),
+                        Time = 4,
+                    })
+                end
             end,
         })
 
