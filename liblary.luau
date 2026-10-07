@@ -206,6 +206,131 @@ local function LoadCustomIconModule()
     return CustomIconModule
 end
 
+--// Veloria custom background module \--
+-- Same pattern as icon.lua: name -> rbxassetid / URL
+-- Edit background.lua on GitHub, library picks names from there.
+local CustomBackgroundModuleURL = "https://raw.githubusercontent.com/RexzVeloria/VeloriaHubLiblary/refs/heads/main/background.lua"
+local CustomBackgroundModule = nil
+local CustomBackgroundAliases = {}
+
+-- Built-in fallback so backgrounds work even before background.lua is uploaded.
+local BuiltinBackgrounds = {
+    Default = "https://cdn.phototourl.com/member/2026-09-23-97c1cf09-9cc3-46ba-b72d-d6c7415fcd82.jpg",
+}
+
+local function NormalizeBackgroundValue(Value: any): string?
+    if type(Value) == "number" then
+        return "rbxassetid://" .. tostring(Value)
+    end
+    if type(Value) == "string" and Value ~= "" then
+        return Value
+    end
+    if type(Value) == "table" and type(Value.Url) == "string" and Value.Url ~= "" then
+        return Value.Url
+    end
+    return nil
+end
+
+local function LoadCustomBackgroundModule()
+    if CustomBackgroundModule then
+        return CustomBackgroundModule
+    end
+
+    local Success, Source = pcall(function()
+        return game:HttpGet(CustomBackgroundModuleURL)
+    end)
+    if not Success or type(Source) ~= "string" or Source == "" then
+        return nil
+    end
+
+    local CompileSuccess, Module = pcall(loadstring, Source)
+    if not CompileSuccess or type(Module) ~= "function" then
+        return nil
+    end
+
+    local ExecuteSuccess, Data = pcall(Module)
+    if not ExecuteSuccess or type(Data) ~= "table" then
+        return nil
+    end
+
+    CustomBackgroundModule = Data
+    table.clear(CustomBackgroundAliases)
+    for Name, Value in pairs(Data) do
+        local Normalized = NormalizeBackgroundValue(Value)
+        if type(Name) == "string" and Normalized then
+            CustomBackgroundAliases[Name] = Normalized
+        end
+    end
+
+    return CustomBackgroundModule
+end
+
+local function ResolveBackgroundRef(Name: any): string?
+    if typeof(Name) ~= "string" or Name == "" then
+        return nil
+    end
+
+    -- Direct URL / asset — not a named entry
+    if Name:match("^https?://") or Name:match("^rbxassetid://") or Name:match("^rbxasset://") or Name:match("^content://") then
+        return Name
+    end
+    if tonumber(Name) then
+        return "rbxassetid://" .. tostring(Name)
+    end
+
+    LoadCustomBackgroundModule()
+
+    local FromRemote = CustomBackgroundAliases[Name]
+    if FromRemote then
+        return FromRemote
+    end
+
+    -- Case-insensitive lookup
+    local Lower = Name:lower()
+    for Key, Value in pairs(CustomBackgroundAliases) do
+        if type(Key) == "string" and Key:lower() == Lower then
+            return Value
+        end
+    end
+
+    local Builtin = BuiltinBackgrounds[Name] or BuiltinBackgrounds[Name:sub(1, 1):upper() .. Name:sub(2):lower()]
+    if Builtin then
+        return Builtin
+    end
+    for Key, Value in pairs(BuiltinBackgrounds) do
+        if Key:lower() == Lower then
+            return Value
+        end
+    end
+
+    return nil
+end
+
+local function ListBackgroundNames(): { string }
+    LoadCustomBackgroundModule()
+
+    local Names = {}
+    local Seen = {}
+
+    local function Add(Name: string)
+        if type(Name) ~= "string" or Name == "" or Seen[Name] then
+            return
+        end
+        Seen[Name] = true
+        table.insert(Names, Name)
+    end
+
+    for Name in pairs(CustomBackgroundAliases) do
+        Add(Name)
+    end
+    for Name in pairs(BuiltinBackgrounds) do
+        Add(Name)
+    end
+
+    table.sort(Names)
+    return Names
+end
+
 local CustomImageManagerAssets = {
     TransparencyTexture = {
         RobloxId = 139785960036434,
@@ -468,7 +593,7 @@ local Library = {
         SidebarColor = Color3.fromRGB(10, 10, 10),
         SidebarAccentColor = Color3.fromRGB(255, 255, 255),
 
-        BackgroundImage = "https://cdn.phototourl.com/member/2026-09-23-97c1cf09-9cc3-46ba-b72d-d6c7415fcd82.jpg"
+        BackgroundImage = "Default",
     },
 
     --// Registry \\--
@@ -628,10 +753,8 @@ IconSize = UDim2.fromOffset(34, 34),
         CompactWidthActivation = 80,
 
         --// Background \\--
-        -- Bisa langsung di-set dari config Window saat CreateWindow:
-        -- BackgroundImage = "rbxassetid://123456789",
-        -- atau URL gambar https://... (akan di-download sebagai custom asset).
-        BackgroundImage = "https://cdn.phototourl.com/member/2026-09-23-97c1cf09-9cc3-46ba-b72d-d6c7415fcd82.jpg",
+        -- Named preset from background.lua ("Default"), rbxassetid, or https URL.
+        BackgroundImage = "Default",
         BackgroundImageTransparency = 0.72,
         BackgroundImageScaleType = "Crop",
         BackgroundImageColor3 = Color3.new(1, 1, 1),
@@ -1774,6 +1897,46 @@ end
 
 function Library:GetVerloIcon()
     return Library:GetCustomIcon("Verlo") or Library:GetCustomIcon("Veloria")
+end
+
+-- Named backgrounds from background.lua (same idea as icon.lua).
+-- Pass a name ("Default"), rbxassetid, or https URL.
+function Library:GetCustomBackground(Name: string): any
+    if not Name then
+        return nil
+    end
+
+    local Resolved = ResolveBackgroundRef(Name)
+    if not Resolved then
+        -- Fall back to icon/URL resolution so existing calls keep working
+        return Library:GetCustomIcon(Name)
+    end
+
+    if Resolved:match("^https?://") then
+        return {
+            Url = Resolved,
+            ImageRectOffset = Vector2.zero,
+            ImageRectSize = Vector2.zero,
+            Custom = true,
+            Background = true,
+        }
+    end
+
+    return {
+        Url = Resolved,
+        ImageRectOffset = Vector2.zero,
+        ImageRectSize = Vector2.zero,
+        Custom = true,
+        Background = true,
+    }
+end
+
+function Library:ListBackgrounds(): { string }
+    return ListBackgroundNames()
+end
+
+function Library:GetBackgroundUrl(Name: string): string?
+    return ResolveBackgroundRef(Name)
 end
 
 function Library:ApplyLucideIcon(ImageGui: any, Icon: any, Rotation: number?)
@@ -11654,7 +11817,8 @@ function Library:CreateWindow(WindowInfo)
             ZIndex = 2
         })
 
-        local BackgroundIcon = Library:GetCustomIcon(WindowInfo.BackgroundImage)
+        local BackgroundIcon = Library:GetCustomBackground(WindowInfo.BackgroundImage)
+            or Library:GetCustomIcon(WindowInfo.BackgroundImage)
         HasBackgroundImage = BackgroundIcon ~= nil
         local BackgroundScaleType = Enum.ScaleType.Stretch
         if typeof(WindowInfo.BackgroundImageScaleType) == "EnumItem" then
@@ -12426,22 +12590,29 @@ function Library:CreateWindow(WindowInfo)
 
     function Window:SetBackgroundImage(Image: string)
         local ValidIcon = false
+        local Source = Image
 
         if typeof(Image) == "string" then
-            local BackgroundIcon = Library:GetCustomIcon(Image)
+            -- Resolve named background (background.lua) before raw URL/asset handling
+            local Resolved = ResolveBackgroundRef(Image)
+            if Resolved then
+                Source = Resolved
+            end
 
-            if BackgroundIcon then
+            local BackgroundIcon = Library:GetCustomBackground(Source)
+                or Library:GetCustomIcon(Source)
+
+            if BackgroundIcon and BackgroundIcon.Url and not tostring(BackgroundIcon.Url):match("^https?://") then
                 ValidIcon = true
-
                 Library:ApplyLucideIcon(BackgroundImage, BackgroundIcon)
-            elseif Image:match("http://") or Image:match("https://") then
-                local RawFileName = Image:match("(.+)%..+$")
-                local _, Domain = Image:match("^(https?://)([^/]+)");
+            elseif typeof(Source) == "string" and (Source:match("http://") or Source:match("https://")) then
+                local RawFileName = Source:match("(.+)%..+$")
+                local _, Domain = Source:match("^(https?://)([^/]+)")
 
                 if RawFileName and Domain then
-                    local Extention = string.sub(Image, #RawFileName + 1, #Image)
+                    local Extention = string.sub(Source, #RawFileName + 1, #Source)
                     local FileNamePos = RawFileName:gsub("\\", "/"):find("/[^/]*$")
-                    local FileName = FileNamePos and Image:sub(FileNamePos + 1) or nil
+                    local FileName = FileNamePos and Source:sub(FileNamePos + 1) or nil
 
                     if FileName then
                         ValidIcon = true
@@ -12457,7 +12628,7 @@ function Library:CreateWindow(WindowInfo)
                         end
 
                         if CustomImageManagerAssets[FileName] == nil then
-                            CustomImageManager.AddAsset(FileName, 0, Image)
+                            CustomImageManager.AddAsset(FileName, 0, Source)
                         else
                             CustomImageManager.DownloadAsset(FileName, true)
                         end
@@ -12467,6 +12638,9 @@ function Library:CreateWindow(WindowInfo)
                         BackgroundImage.ImageRectSize = Vector2.zero
                     end
                 end
+            elseif BackgroundIcon then
+                ValidIcon = true
+                Library:ApplyLucideIcon(BackgroundImage, BackgroundIcon)
             end
         end
 
@@ -15587,8 +15761,52 @@ function Library:CreateWindow(WindowInfo)
             IconName = "image",
         })
 
+        local function RefreshBackgroundList()
+            return Library:ListBackgrounds()
+        end
+
+        local BgNames = RefreshBackgroundList()
+        local DefaultBgName = "Default"
+        if not table.find(BgNames, DefaultBgName) and #BgNames > 0 then
+            DefaultBgName = BgNames[1]
+        end
+
+        local BgDropdown = BgBox:AddDropdown("VeloriaBackgroundPreset", {
+            Text = "Preset",
+            Values = BgNames,
+            Default = DefaultBgName,
+            Multi = false,
+            Searchable = true,
+        })
+
+        BgDropdown:OnChanged(function(Value)
+            if typeof(Value) ~= "string" or Value == "" then
+                return
+            end
+            local Ok, Err = pcall(function()
+                Window:SetBackgroundImage(Value)
+            end)
+            if Ok then
+                Library:Notify({ Title = "Background", Description = Value, Time = 2 })
+            else
+                Library:Notify({ Title = "Background", Description = tostring(Err), Time = 4 })
+            end
+        end)
+
+        BgBox:AddButton({
+            Text = "Refresh presets",
+            Tooltip = "Reload names from background.lua",
+            Func = function()
+                CustomBackgroundModule = nil
+                table.clear(CustomBackgroundAliases)
+                local List = RefreshBackgroundList()
+                BgDropdown:SetValues(List)
+                Library:Notify({ Title = "Background", Description = tostring(#List) .. " presets", Time = 2 })
+            end,
+        })
+
         local BgInput = BgBox:AddInput("VeloriaBackgroundURL", {
-            Text = "URL / asset",
+            Text = "Custom URL",
             Default = "",
             Placeholder = "https://… or rbxassetid://…",
             Finished = false,
@@ -15596,8 +15814,8 @@ function Library:CreateWindow(WindowInfo)
         })
 
         BgBox:AddButton({
-            Text = "Apply",
-            Tooltip = "Set window background from the field above",
+            Text = "Apply URL",
+            Tooltip = "Use a one-off URL / asset (not from the preset list)",
             Func = function()
                 local Opt = Options["VeloriaBackgroundURL"]
                 local Url = ""
@@ -15618,7 +15836,7 @@ function Library:CreateWindow(WindowInfo)
                 end)
 
                 if Ok then
-                    Library:Notify({ Title = "Background", Description = "Updated.", Time = 3 })
+                    Library:Notify({ Title = "Background", Description = "Custom URL applied.", Time = 3 })
                 else
                     Library:Notify({ Title = "Background", Description = tostring(Err), Time = 4 })
                 end
@@ -15631,12 +15849,7 @@ function Library:CreateWindow(WindowInfo)
             Func = function()
                 local DefaultBg = Window.OriginalBackgroundImage
                     or Library.Scheme.BackgroundImage
-                    or ""
-
-                if typeof(DefaultBg) ~= "string" or DefaultBg == "" then
-                    Library:Notify({ Title = "Background", Description = "No default set.", Time = 3 })
-                    return
-                end
+                    or "Default"
 
                 local Ok, Err = pcall(function()
                     Window:SetBackgroundImage(DefaultBg)
@@ -15646,6 +15859,13 @@ function Library:CreateWindow(WindowInfo)
                     local Opt = Options["VeloriaBackgroundURL"]
                     if Opt and Opt.SetValue then
                         pcall(function() Opt:SetValue("") end)
+                    end
+                    if BgDropdown and BgDropdown.SetValue then
+                        pcall(function()
+                            if table.find(BgDropdown.Values or {}, "Default") then
+                                BgDropdown:SetValue("Default")
+                            end
+                        end)
                     end
                     Library:Notify({ Title = "Background", Description = "Reset.", Time = 3 })
                 else
