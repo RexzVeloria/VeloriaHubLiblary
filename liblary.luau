@@ -12861,8 +12861,7 @@ function Library:CreateWindow(WindowInfo)
         local TabIcon
 
         local TabContainer
-        local TabLeft
-        local TabRight
+        local TabContent
 
         Icon = Library:GetCustomIcon(Icon)
         do
@@ -12880,7 +12879,6 @@ function Library:CreateWindow(WindowInfo)
             })
 
             if TabButtonsStyle.Indicator then
-                -- Veloria: indicator bar di kiri (bukan kanan), warna merah
                 TabIndicator = New("Frame", {
                     AnchorPoint = Vector2.new(0, 0.5),
                     BackgroundColor3 = "AccentColor",
@@ -12922,7 +12920,6 @@ function Library:CreateWindow(WindowInfo)
 
             if Icon then
                 TabIcon = New("ImageLabel", {
-                    -- Veloria: icon merah transparan saat idle, solid merah saat aktif
                     ImageColor3 = "AccentColor",
                     ImageTransparency = 0.55,
                     ScaleType = Enum.ScaleType.Fit,
@@ -12939,7 +12936,6 @@ function Library:CreateWindow(WindowInfo)
                 Icon = TabIcon,
             })
 
-            --// Tab Container \\--
             TabContainer = New("Frame", {
                 BackgroundTransparency = 1,
                 Position = UDim2.fromScale(0, 0),
@@ -12948,76 +12944,41 @@ function Library:CreateWindow(WindowInfo)
                 Parent = Container,
             })
 
-            TabLeft = New("ScrollingFrame", {
+            -- Single column. AddLeft/AddRight still work; both go here.
+            TabContent = New("ScrollingFrame", {
                 AutomaticCanvasSize = Enum.AutomaticSize.Y,
                 BackgroundTransparency = 1,
                 CanvasSize = UDim2.fromScale(0, 0),
                 ScrollBarImageTransparency = 1,
                 ScrollBarThickness = 0,
-                Size = UDim2.new(0.5, -3, 1, 0),
+                Size = UDim2.fromScale(1, 1),
                 Parent = TabContainer,
             })
             New("UIListLayout", {
                 Padding = UDim.new(0, 2),
-                Parent = TabLeft,
+                Parent = TabContent,
             })
             New("UIPadding", {
                 PaddingBottom = UDim.new(0, 2),
                 PaddingLeft = UDim.new(0, 2),
                 PaddingRight = UDim.new(0, 2),
                 PaddingTop = UDim.new(0, 2),
-                Parent = TabLeft,
+                Parent = TabContent,
             })
             do
                 New("Frame", {
                     BackgroundTransparency = 1,
                     LayoutOrder = -1,
-                    Parent = TabLeft,
+                    Parent = TabContent,
                 })
                 New("Frame", {
                     BackgroundTransparency = 1,
                     LayoutOrder = 1,
-                    Parent = TabLeft,
-                })
-            end
-
-            TabRight = New("ScrollingFrame", {
-                AnchorPoint = Vector2.new(1, 0),
-                AutomaticCanvasSize = Enum.AutomaticSize.Y,
-                BackgroundTransparency = 1,
-                CanvasSize = UDim2.fromScale(0, 0),
-                Position = UDim2.fromScale(1, 0),
-                ScrollBarImageTransparency = 1,
-                ScrollBarThickness = 0,
-                Size = UDim2.new(0.5, -3, 1, 0),
-                Parent = TabContainer,
-            })
-            New("UIListLayout", {
-                Padding = UDim.new(0, 2),
-                Parent = TabRight,
-            })
-            New("UIPadding", {
-                PaddingBottom = UDim.new(0, 2),
-                PaddingLeft = UDim.new(0, 2),
-                PaddingRight = UDim.new(0, 2),
-                PaddingTop = UDim.new(0, 2),
-                Parent = TabRight,
-            })
-            do
-                New("Frame", {
-                    BackgroundTransparency = 1,
-                    LayoutOrder = -1,
-                    Parent = TabRight,
-                })
-                New("Frame", {
-                    BackgroundTransparency = 1,
-                    LayoutOrder = 1,
-                    Parent = TabRight,
+                    Parent = TabContent,
                 })
             end
         end
 
-        --// Tab Table \\--
         local Tab = {
             Name = Name,
             Description = Description,
@@ -13032,8 +12993,7 @@ function Library:CreateWindow(WindowInfo)
             Button = TabButton,
             Container = TabContainer,
             Sides = {
-                TabLeft,
-                TabRight,
+                TabContent,
             },
             WarningBox = {
                 IsNormal = false,
@@ -13193,8 +13153,8 @@ function Library:CreateWindow(WindowInfo)
         function Tab:RefreshSides()
             local Offset = WarningBoxHolder.Visible and WarningBox.Size.Y.Offset + 8 or 0
             for _, Side in Tab.Sides do
-                Side.Position = UDim2.new(Side.Position.X.Scale, 0, 0, Offset)
-                Side.Size = UDim2.new(0.5, -3, 1, -Offset)
+                Side.Position = UDim2.new(0, 0, 0, Offset)
+                Side.Size = UDim2.new(1, 0, 1, -Offset)
             end
         end
 
@@ -13240,7 +13200,7 @@ function Library:CreateWindow(WindowInfo)
                 AutomaticSize = Enum.AutomaticSize.Y,
                 BackgroundTransparency = 1,
                 Size = UDim2.fromScale(1, 0),
-                Parent = if ParentObj.Type == "Groupbox" then ParentObj.Container else (Info.Side == 1 and TabLeft or TabRight),
+                Parent = if ParentObj.Type == "Groupbox" then ParentObj.Container else TabContent,
             })
             New("UIListLayout", {
                 Padding = UDim.new(0, 6),
@@ -13618,7 +13578,7 @@ function Library:CreateWindow(WindowInfo)
                 AutomaticSize = Enum.AutomaticSize.Y,
                 BackgroundTransparency = 1,
                 Size = UDim2.fromScale(1, 0),
-                Parent = (Info.Side == 1) and TabLeft or TabRight,
+                Parent = TabContent,
             })
             New("UIListLayout", {
                 Padding = UDim.new(0, 6),
@@ -15477,8 +15437,7 @@ function Library:CreateWindow(WindowInfo)
         end)
     end
 
-    --// Veloria Settings / Config tab
-    -- Always available and isolated by GameId + PlaceId.
+    -- Settings / config (one column, per GameId+PlaceId)
     if not Library.Tabs["Settings"] then
         local SettingsTab = Window:AddTab({
             Name = "Settings",
@@ -15495,36 +15454,31 @@ function Library:CreateWindow(WindowInfo)
             return VeloriaConfig:ListProfiles()
         end
 
-        local ConfigBox = SettingsTab:AddLeftGroupbox({
-            Name = "Configuration",
+        local ConfigBox = SettingsTab:AddGroupbox({
+            Name = "Config",
             IconName = "save",
         })
 
         ConfigBox:AddLabel({
-            Text = string.format(
-                "Game: %s\nPlaceId: %s",
-                tostring(game.Name or "Unknown"),
-                tostring(game.PlaceId or 0)
-            ),
+            Text = string.format("%s  ·  Place %s", tostring(game.Name or "Unknown"), tostring(game.PlaceId or 0)),
             DoesWrap = true,
-            Size = 13,
+            Size = 12,
         })
 
         local ConfigPathLabel = ConfigBox:AddLabel({
-            Text = "Config: " .. VeloriaConfig:GetFilePath(CurrentProfile),
+            Text = VeloriaConfig:GetFilePath(CurrentProfile),
             DoesWrap = true,
             Size = 12,
         })
 
         local StatusLabel = ConfigBox:AddLabel({
-            Text = "Status: Ready",
+            Text = "Ready",
             DoesWrap = true,
             Size = 12,
         })
 
-        -- Dropdown: pilih config yang sudah ada (bukan nebak nama)
         local ProfileDropdown = ConfigBox:AddDropdown("VeloriaConfigProfile", {
-            Text = "Select Config",
+            Text = "Profile",
             Values = RefreshProfileList(),
             Default = CurrentProfile,
             Multi = false,
@@ -15534,37 +15488,32 @@ function Library:CreateWindow(WindowInfo)
         ProfileDropdown:OnChanged(function(Value)
             if typeof(Value) == "string" and Value ~= "" then
                 CurrentProfile = SafeConfigName(Value)
-                ConfigPathLabel:SetText("Config: " .. VeloriaConfig:GetFilePath(CurrentProfile))
+                ConfigPathLabel:SetText(VeloriaConfig:GetFilePath(CurrentProfile))
             end
         end)
 
-        -- Input untuk buat / rename config baru
         local NewNameInput = ConfigBox:AddInput("VeloriaConfigNewName", {
-            Text = "New Config Name",
+            Text = "New name",
             Default = "",
-            Placeholder = "nama config baru...",
+            Placeholder = "type a name…",
             Finished = false,
             ClearTextOnFocus = false,
         })
 
         ConfigBox:AddButton({
-            Text = "Use New Name",
-            Tooltip = "Pakai nama baru di input untuk Save berikutnya",
+            Text = "Use name",
+            Tooltip = "Set the typed name as the active profile",
             Func = function()
                 local Opt = Options["VeloriaConfigNewName"]
                 local Raw = (Opt and Opt.Value) or ""
                 local Clean = SafeConfigName(Raw)
                 if Clean == "" then
-                    Library:Notify({
-                        Title = "Config",
-                        Description = "Isi nama config baru dulu.",
-                        Time = 3,
-                    })
+                    Library:Notify({ Title = "Config", Description = "Enter a name first.", Time = 3 })
                     return
                 end
 
                 CurrentProfile = Clean
-                ConfigPathLabel:SetText("Config: " .. VeloriaConfig:GetFilePath(CurrentProfile))
+                ConfigPathLabel:SetText(VeloriaConfig:GetFilePath(CurrentProfile))
 
                 local List = RefreshProfileList()
                 local Found = false
@@ -15578,115 +15527,77 @@ function Library:CreateWindow(WindowInfo)
                 ProfileDropdown:SetValues(List)
                 ProfileDropdown:SetValue(Clean)
 
-                Library:Notify({
-                    Title = "Config",
-                    Description = "Nama aktif: " .. Clean,
-                    Time = 3,
-                })
+                Library:Notify({ Title = "Config", Description = "Active: " .. Clean, Time = 3 })
             end,
         })
 
         ConfigBox:AddButton({
-            Text = "Save Config",
-            Tooltip = "Save config dengan nama yang dipilih",
+            Text = "Save",
+            Tooltip = "Write current options to the selected profile",
             Func = function()
                 local Success, Message = Library:SaveConfig(CurrentProfile)
 
                 if Success then
-                    StatusLabel:SetText("Status: Saved — " .. CurrentProfile)
+                    StatusLabel:SetText("Saved · " .. CurrentProfile)
                     local List = RefreshProfileList()
                     ProfileDropdown:SetValues(List)
                     pcall(function() ProfileDropdown:SetValue(CurrentProfile) end)
-
-                    Library:Notify({
-                        Title = "Config Saved",
-                        Description = "Saved as \"" .. CurrentProfile .. "\"",
-                        Time = 3,
-                    })
+                    Library:Notify({ Title = "Saved", Description = CurrentProfile, Time = 3 })
                 else
-                    StatusLabel:SetText("Status: Save failed — " .. tostring(Message))
-                    Library:Notify({
-                        Title = "Config Error",
-                        Description = tostring(Message),
-                        Time = 4,
-                    })
+                    StatusLabel:SetText("Save failed · " .. tostring(Message))
+                    Library:Notify({ Title = "Config", Description = tostring(Message), Time = 4 })
                 end
             end,
         })
 
         ConfigBox:AddButton({
-            Text = "Load Config",
-            Tooltip = "Load config yang dipilih di dropdown",
+            Text = "Load",
+            Tooltip = "Apply the selected profile",
             Func = function()
                 local Success, Message = Library:LoadConfig(CurrentProfile)
 
                 if Success then
-                    StatusLabel:SetText("Status: Loaded — " .. CurrentProfile)
-                    Library:Notify({
-                        Title = "Config Loaded",
-                        Description = "Loaded \"" .. CurrentProfile .. "\"",
-                        Time = 3,
-                    })
+                    StatusLabel:SetText("Loaded · " .. CurrentProfile)
+                    Library:Notify({ Title = "Loaded", Description = CurrentProfile, Time = 3 })
                 else
-                    StatusLabel:SetText("Status: Load failed — " .. tostring(Message))
-                    Library:Notify({
-                        Title = "Config Error",
-                        Description = tostring(Message),
-                        Time = 4,
-                    })
+                    StatusLabel:SetText("Load failed · " .. tostring(Message))
+                    Library:Notify({ Title = "Config", Description = tostring(Message), Time = 4 })
                 end
             end,
         })
 
         ConfigBox:AddButton({
-            Text = "Refresh List",
-            Tooltip = "Refresh daftar config di folder game ini",
+            Text = "Refresh",
+            Tooltip = "Reload profile list for this place",
             Func = function()
                 local List = RefreshProfileList()
                 ProfileDropdown:SetValues(List)
-                StatusLabel:SetText("Status: List refreshed (" .. tostring(#List) .. ")")
+                StatusLabel:SetText("Profiles: " .. tostring(#List))
             end,
         })
 
-        ConfigBox:AddLabel({
-            Text = "Configs per GameId + PlaceId. Pilih dari dropdown, atau buat nama baru.",
-            DoesWrap = true,
-            Size = 12,
-        })
-
-        local SettingsBox = SettingsTab:AddRightGroupbox({
-            Name = "Library",
-            IconName = "settings",
-        })
-
-        SettingsBox:AddLabel({
-            Text = "Veloria Hub\nConfig system: per-game",
-            DoesWrap = true,
-            Size = 13,
-        })
-
-        SettingsBox:AddToggle("VeloriaConfigAutoSave", {
-            Text = "Auto Save",
+        ConfigBox:AddToggle("VeloriaConfigAutoSave", {
+            Text = "Auto-save on unload",
             Default = false,
-            Tooltip = "Save config aktif saat library unload.",
+            Tooltip = "Write the active profile when the library unloads",
         })
 
-        SettingsBox:AddLabel({
-            Text = "Background Image",
-            Size = 13,
+        local BgBox = SettingsTab:AddGroupbox({
+            Name = "Background",
+            IconName = "image",
         })
 
-        local BgInput = SettingsBox:AddInput("VeloriaBackgroundURL", {
-            Text = "Background URL",
+        local BgInput = BgBox:AddInput("VeloriaBackgroundURL", {
+            Text = "URL / asset",
             Default = "",
-            Placeholder = "https://... or rbxassetid://...",
+            Placeholder = "https://… or rbxassetid://…",
             Finished = false,
             ClearTextOnFocus = false,
         })
 
-        SettingsBox:AddButton({
-            Text = "Apply Background",
-            Tooltip = "Set window background from URL or rbxassetid",
+        BgBox:AddButton({
+            Text = "Apply",
+            Tooltip = "Set window background from the field above",
             Func = function()
                 local Opt = Options["VeloriaBackgroundURL"]
                 local Url = ""
@@ -15698,11 +15609,7 @@ function Library:CreateWindow(WindowInfo)
                 Url = tostring(Url or ""):gsub("^%s+", ""):gsub("%s+$", "")
 
                 if Url == "" then
-                    Library:Notify({
-                        Title = "Background",
-                        Description = "Masukkan URL / rbxassetid dulu.",
-                        Time = 3,
-                    })
+                    Library:Notify({ Title = "Background", Description = "Paste a URL or rbxassetid first.", Time = 3 })
                     return
                 end
 
@@ -15711,35 +15618,23 @@ function Library:CreateWindow(WindowInfo)
                 end)
 
                 if Ok then
-                    Library:Notify({
-                        Title = "Background",
-                        Description = "Background berhasil diganti.",
-                        Time = 3,
-                    })
+                    Library:Notify({ Title = "Background", Description = "Updated.", Time = 3 })
                 else
-                    Library:Notify({
-                        Title = "Background",
-                        Description = "Gagal: " .. tostring(Err),
-                        Time = 4,
-                    })
+                    Library:Notify({ Title = "Background", Description = tostring(Err), Time = 4 })
                 end
             end,
         })
 
-        SettingsBox:AddButton({
-            Text = "Reset Background",
-            Tooltip = "Kembalikan background default Veloria",
+        BgBox:AddButton({
+            Text = "Reset",
+            Tooltip = "Restore the default Veloria background",
             Func = function()
                 local DefaultBg = Window.OriginalBackgroundImage
                     or Library.Scheme.BackgroundImage
                     or ""
 
                 if typeof(DefaultBg) ~= "string" or DefaultBg == "" then
-                    Library:Notify({
-                        Title = "Background",
-                        Description = "Default background tidak tersedia.",
-                        Time = 3,
-                    })
+                    Library:Notify({ Title = "Background", Description = "No default set.", Time = 3 })
                     return
                 end
 
@@ -15748,29 +15643,19 @@ function Library:CreateWindow(WindowInfo)
                 end)
 
                 if Ok then
-                    -- clear input so user sees it reset
                     local Opt = Options["VeloriaBackgroundURL"]
                     if Opt and Opt.SetValue then
                         pcall(function() Opt:SetValue("") end)
                     end
-                    Library:Notify({
-                        Title = "Background",
-                        Description = "Background direset ke default.",
-                        Time = 3,
-                    })
+                    Library:Notify({ Title = "Background", Description = "Reset.", Time = 3 })
                 else
-                    Library:Notify({
-                        Title = "Background",
-                        Description = "Gagal reset: " .. tostring(Err),
-                        Time = 4,
-                    })
+                    Library:Notify({ Title = "Background", Description = tostring(Err), Time = 4 })
                 end
             end,
         })
 
         Library:OnUnload(function()
             local AutoSaveToggle = Toggles["VeloriaConfigAutoSave"]
-
             if AutoSaveToggle and AutoSaveToggle.Value == true then
                 pcall(function()
                     Library:SaveConfig(CurrentProfile)
