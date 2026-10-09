@@ -15891,24 +15891,37 @@ function Library:CreateWindow(WindowInfo)
 
         local StatsGui = Instance.new("ScreenGui")
         StatsGui.Name = "VeloriaStats"
-        StatsGui.DisplayOrder = 1001
+        StatsGui.DisplayOrder = 9999
         StatsGui.ResetOnSpawn = false
+        StatsGui.IgnoreGuiInset = true
         StatsGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-        pcall(protectgui, StatsGui)
-        pcall(function() SafeParentUI(StatsGui, gethui) end)
-        if not StatsGui.Parent then
-            StatsGui.Parent = CoreGui
+        -- Parent langsung ke CoreGui — jangan lewat helper library biar ga nyangkut di container dia
+        local StatsGuiParented = false
+        pcall(function()
+            pcall(protectgui, StatsGui)
+            StatsGui.Parent = gethui()
+            StatsGuiParented = StatsGui.Parent ~= nil
+        end)
+        if not StatsGuiParented then
+            pcall(function()
+                StatsGui.Parent = CoreGui
+                StatsGuiParented = true
+            end)
+        end
+        if not StatsGuiParented then
+            StatsGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
         end
 
         local StatsFrame = Instance.new("Frame")
         StatsFrame.Name = "StatsIsland"
         StatsFrame.AnchorPoint = Vector2.new(0.5, 0)
-        StatsFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
-        StatsFrame.BackgroundTransparency = 0.08
+        StatsFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+        StatsFrame.BackgroundTransparency = 0.05
         StatsFrame.BorderSizePixel = 0
-        StatsFrame.Position = UDim2.new(0.5, 0, 0, 10)
-        StatsFrame.Size = UDim2.fromOffset(140, 34)
-        StatsFrame.ZIndex = 1
+        StatsFrame.Active = false    -- tidak bisa di-drag / di-klik
+        StatsFrame.Position = UDim2.new(0.5, 0, 0, 6)
+        StatsFrame.Size = UDim2.fromOffset(148, 32)
+        StatsFrame.ZIndex = 10
         StatsFrame.Parent = StatsGui
 
         local StatsCorner = Instance.new("UICorner")
