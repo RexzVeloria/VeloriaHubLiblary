@@ -4041,7 +4041,7 @@ function Library:AddDraggableLabel(...)
         Size = UDim2.fromOffset(0, 0),
         Position = UDim2.fromOffset(6, 6),
         Text = Text,
-        TextSize = 15,
+        TextSize = 17,
         ZIndex = 1,
         Parent = Floats,
     })
@@ -4180,7 +4180,7 @@ function Library:AddDraggableButton(...)
     local Button = New("TextButton", {
         BackgroundColor3 = "BackgroundColor",
         Position = UDim2.fromOffset(6, 6),
-        TextSize = 16,
+        TextSize = 18,
         ZIndex = 1,
         Parent = Floats,
     })
@@ -4297,7 +4297,7 @@ function Library:AddDraggableMenu(Name: string)
         BackgroundTransparency = 1,
         Size = UDim2.new(1, 0, 0, 34),
         Text = Name,
-        TextSize = 15,
+        TextSize = 17,
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = Holder,
     })
@@ -4830,7 +4830,7 @@ end))
 local TooltipLabel = New("TextLabel", {
     AutomaticSize = Enum.AutomaticSize.Y,
     BackgroundColor3 = "BackgroundColor",
-    TextSize = 14,
+    TextSize = 18,
     TextWrapped = true,
     Visible = false,
     ZIndex = 30,
@@ -5216,7 +5216,7 @@ do
             BackgroundColor3 = "MainColor",
             Size = UDim2.fromOffset(18, 18),
             Text = (IsForButton and SlideOverflow) and "" or KeyPicker.Value,
-            TextSize = 14,
+            TextSize = 18,
             TextTransparency = 0.4,
             Parent = ToggleLabel,
         })
@@ -5229,7 +5229,7 @@ do
                 Size = UDim2.new(1, 0, 1, 0),
                 Position = UDim2.new(0, 0, 0, 0),
                 Text = KeyPicker.Value,
-                TextSize = 14,
+                TextSize = 18,
                 FontFace = Picker.FontFace,
                 TextXAlignment = Enum.TextXAlignment.Center,
                 Parent = Picker,
@@ -5335,7 +5335,7 @@ do
                 BackgroundTransparency = 1,
                 Size = UDim2.fromScale(0, 1),
                 Text = "",
-                TextSize = 14,
+                TextSize = 18,
                 TextTransparency = 0.5,
                 Parent = Holder,
             })
@@ -5472,7 +5472,7 @@ do
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, IsForButton and 21 or (TotalModeButtons == 1 and 18 or 19)),
                 Text = Mode,
-                TextSize = 14,
+                TextSize = 18,
                 TextTransparency = 0.5,
                 Parent = MenuTable.Menu,
             })
@@ -6324,7 +6324,7 @@ do
             BackgroundTransparency = 1,
             Size = UDim2.fromScale(1, 1),
             Text = "",
-            TextSize = 14,
+            TextSize = 18,
             TextTransparency = 0.5,
             TextTruncate = Enum.TextTruncate.AtEnd,
             TextXAlignment = Enum.TextXAlignment.Center,
@@ -6347,7 +6347,7 @@ do
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 8),
                 Text = ColorPicker.Title,
-                TextSize = 14,
+                TextSize = 18,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 Parent = ContentHolder,
             })
@@ -6578,7 +6578,7 @@ do
             ClearTextOnFocus = false,
             Size = UDim2.fromScale(1, 1),
             Text = "#??????",
-            TextSize = 14,
+            TextSize = 18,
             Parent = InfoHolder,
         })
 
@@ -6600,7 +6600,7 @@ do
             ClearTextOnFocus = false,
             Size = UDim2.fromScale(1, 1),
             Text = "?, ?, ?",
-            TextSize = 14,
+            TextSize = 18,
             Parent = InfoHolder,
         })
 
@@ -6647,7 +6647,7 @@ do
                     BackgroundTransparency = 1,
                     Size = UDim2.new(1, 0, 0, 21),
                     Text = Text,
-                    TextSize = 14,
+                    TextSize = 18,
                     Parent = ContextMenu.Menu,
                 })
 
@@ -6714,7 +6714,7 @@ do
             BackgroundColor3 = "MainColor",
             Size = UDim2.fromScale(1, 1),
             Text = "Copy color",
-            TextSize = 14,
+            TextSize = 18,
             Parent = ActionHolder,
         })
         New("UIStroke", {
@@ -6733,7 +6733,7 @@ do
             BackgroundColor3 = "MainColor",
             Size = UDim2.fromScale(1, 1),
             Text = "Paste color",
-            TextSize = 14,
+            TextSize = 18,
             Parent = ActionHolder,
         })
         New("UIStroke", {
@@ -7137,7 +7137,7 @@ do
                 BackgroundTransparency = 1,
                 Size = UDim2.fromScale(1, 0),
                 Text = Text,
-                TextSize = 14,
+                TextSize = 18,
                 TextTransparency = 0.5,
                 TextXAlignment = Enum.TextXAlignment.Center,
                 Parent = InnerHolder,
@@ -7470,7 +7470,7 @@ do
                 BackgroundColor3 = Button.Disabled and "BackgroundColor" or "MainColor",
                 Size = UDim2.fromScale(1, 1),
                 Text = Button.Text,
-                TextSize = 14,
+                TextSize = 18,
                 TextTransparency = 0.4,
                 Visible = Button.Visible,
                 Parent = Holder,
@@ -7830,7 +7830,7 @@ do
             Position = UDim2.fromOffset(26, 0),
             Size = UDim2.new(1, -26, 1, 0),
             Text = Toggle.Text,
-            TextSize = 14,
+            TextSize = 18,
             TextTransparency = 0.4,
             TextXAlignment = Enum.TextXAlignment.Left,
             Parent = Button,
@@ -8087,7 +8087,7 @@ do
             BackgroundTransparency = 1,
             Size = UDim2.new(1, -40, 1, 0),
             Text = Toggle.Text,
-            TextSize = 14,
+            TextSize = 18,
             TextTransparency = 0.4,
             TextXAlignment = Enum.TextXAlignment.Left,
             Parent = Button,
@@ -8361,7 +8361,7 @@ do
             BackgroundTransparency = 1,
             Size = UDim2.new(1, 0, 0, 14),
             Text = Input.Text,
-            TextSize = 14,
+            TextSize = 18,
             TextXAlignment = Enum.TextXAlignment.Left,
             Parent = Holder,
         })
@@ -8618,7 +8618,7 @@ do
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 14),
                 Text = Slider.Text,
-                TextSize = 14,
+                TextSize = 18,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 Parent = Holder,
             })
@@ -8643,7 +8643,7 @@ do
             BackgroundTransparency = 1,
             Size = UDim2.fromScale(1, 1),
             Text = "",
-            TextSize = 14,
+            TextSize = 18,
             ZIndex = Bar.ZIndex + 2,
             Parent = Bar,
         })
@@ -8661,7 +8661,7 @@ do
                 BackgroundTransparency = 1,
                 Size = UDim2.fromScale(1, 1),
                 Text = "",
-                TextSize = 14,
+                TextSize = 18,
                 ZIndex = Bar.ZIndex + 3,
                 Visible = false,
                 ClearTextOnFocus = false,
@@ -9078,7 +9078,7 @@ do
             BackgroundTransparency = 1,
             Size = UDim2.new(1, 0, 0, 14),
             Text = Dropdown.Text,
-            TextSize = 14,
+            TextSize = 18,
             TextXAlignment = Enum.TextXAlignment.Left,
             Visible = not not Info.Text,
             ZIndex = 3,
@@ -9130,7 +9130,7 @@ do
             BackgroundTransparency = 1,
             Size = UDim2.new(1, 0, 0, 21),
             Text = "---",
-            TextSize = 14,
+            TextSize = 18,
             TextXAlignment = Enum.TextXAlignment.Left,
             ZIndex = 2,
             Parent = DisplayContainer,
@@ -9155,7 +9155,7 @@ do
                 PlaceholderText = "Search...",
                 Position = UDim2.fromOffset(-8, 0),
                 Size = UDim2.new(1, -12, 1, 0),
-                TextSize = 14,
+                TextSize = 18,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 Visible = false,
                 Parent = DisplayButton,
@@ -9627,7 +9627,7 @@ do
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, ItemHeight),
                 Text = "",
-                TextSize = 14,
+                TextSize = 18,
                 TextTransparency = 0.5,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 Parent = Container,
@@ -11444,7 +11444,7 @@ function Library:Notify(...)
             Size = UDim2.fromScale(0, 0),
             Text = Data.Title,
             TextColor3 = Data.TitleColor or "FontColor",
-            TextSize = 15,
+            TextSize = 17,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextYAlignment = Enum.TextYAlignment.Center,
             TextWrapped = true,
@@ -11459,7 +11459,7 @@ function Library:Notify(...)
             Size = UDim2.fromScale(0, 0),
             Text = Data.Description,
             TextColor3 = Data.DescriptionColor or "FontColor",
-            TextSize = 14,
+            TextSize = 18,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextWrapped = true,
             Parent = TextContainer,
@@ -11970,7 +11970,7 @@ function Library:CreateWindow(WindowInfo)
             LayoutOrder = 2,
             Size = UDim2.fromOffset(TitleAvailableWidth, 48),
             Text = WindowInfo.Title,
-            TextSize = 18,
+            TextSize = 20,
             FontFace = Library.Scheme.Font,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextYAlignment = Enum.TextYAlignment.Center,
@@ -12039,7 +12039,7 @@ function Library:CreateWindow(WindowInfo)
             Size = UDim2.fromScale(1, 0),
             AutomaticSize = Enum.AutomaticSize.Y,
             Text = "",
-            TextSize = 14,
+            TextSize = 18,
             TextWrapped = false,
             TextTruncate = Enum.TextTruncate.AtEnd,
             TextXAlignment = Enum.TextXAlignment.Left,
@@ -12075,7 +12075,7 @@ function Library:CreateWindow(WindowInfo)
             PlaceholderText = "Search features...",
             ClearTextOnFocus = false,
             Size = UDim2.fromScale(1, 1),
-            TextSize = 14,
+            TextSize = 18,
             TextXAlignment = Enum.TextXAlignment.Left,
             Visible = true,
             Parent = SearchHolder,
@@ -13085,7 +13085,7 @@ function Library:CreateWindow(WindowInfo)
                 Position = UDim2.fromOffset(30, 0),
                 Size = UDim2.new(1, -30, 1, 0),
                 Text = Name,
-                TextSize = 14,
+                TextSize = 18,
                 TextTransparency = 0.5,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 Visible = not IsCompact,
@@ -13252,7 +13252,7 @@ function Library:CreateWindow(WindowInfo)
                 Size = UDim2.new(1, -4, 0, 14),
                 Text = "",
                 TextColor3 = Color3.fromRGB(255, 50, 50),
-                TextSize = 14,
+                TextSize = 18,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 Parent = WarningBoxScrollingFrame,
             })
@@ -13279,7 +13279,7 @@ function Library:CreateWindow(WindowInfo)
                 Position = UDim2.fromOffset(0, 16),
                 Size = UDim2.new(1, -4, 0, 0),
                 Text = "",
-                TextSize = 14,
+                TextSize = 18,
                 TextWrapped = true,
                 Parent = WarningBoxScrollingFrame,
                 TextXAlignment = Enum.TextXAlignment.Left,
@@ -13511,7 +13511,7 @@ function Library:CreateWindow(WindowInfo)
                         BackgroundTransparency = 1,
                         Size = UDim2.fromOffset(0, 16),
                         Text = Name,
-                        TextSize = 15,
+                        TextSize = 17,
                         TextTransparency = 0.5,
                         Parent = ButtonContent,
                     })
@@ -13844,7 +13844,7 @@ function Library:CreateWindow(WindowInfo)
                     BackgroundTransparency = 1,
                     Size = UDim2.fromScale(1, 0),
                     Text = Info.Name,
-                    TextSize = 15,
+                    TextSize = 17,
                     TextWrapped = false,
                     TextTruncate = Enum.TextTruncate.AtEnd,
                     TextXAlignment = Enum.TextXAlignment.Left,
@@ -13860,7 +13860,7 @@ function Library:CreateWindow(WindowInfo)
                     BackgroundTransparency = 1,
                     Size = UDim2.fromScale(1, 0),
                     Text = Info.Description or "",
-                    TextSize = 14,
+                    TextSize = 18,
                     TextTransparency = 0.5,
                     TextWrapped = true,
                     TextXAlignment = Enum.TextXAlignment.Left,
@@ -14439,7 +14439,7 @@ function Library:CreateWindow(WindowInfo)
                 Position = UDim2.fromOffset(30, 0),
                 Size = UDim2.new(1, -30, 1, 0),
                 Text = Name,
-                TextSize = 16,
+                TextSize = 18,
                 TextTransparency = 0.5,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 Visible = not IsCompact,
@@ -14531,7 +14531,7 @@ function Library:CreateWindow(WindowInfo)
                 BackgroundColor3 = "MainColor",
                 PlaceholderText = "Key",
                 Size = UDim2.new(1, -71, 1, 0),
-                TextSize = 14,
+                TextSize = 18,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 Parent = Holder,
             })
@@ -14572,7 +14572,7 @@ function Library:CreateWindow(WindowInfo)
                 Position = UDim2.fromScale(1, 0),
                 Size = UDim2.new(0, 63, 1, 0),
                 Text = "Execute",
-                TextSize = 14,
+                TextSize = 18,
                 TextTransparency = 0.4,
                 Parent = Holder,
             })
@@ -14908,7 +14908,7 @@ function Library:CreateWindow(WindowInfo)
             Size = UDim2.new(1, 0, 0, 18),
             AutomaticSize = Enum.AutomaticSize.Y,
             Text = Info.Title,
-            TextSize = 18,
+            TextSize = 20,
             TextColor3 = Info.TitleColor or "FontColor",
             TextXAlignment = Enum.TextXAlignment.Left,
             LayoutOrder = 2,
@@ -14921,7 +14921,7 @@ function Library:CreateWindow(WindowInfo)
             Size = UDim2.new(1, 0, 0, 14),
             AutomaticSize = Enum.AutomaticSize.Y,
             Text = Info.Description,
-            TextSize = 14,
+            TextSize = 18,
             TextTransparency = Info.DescriptionColor and 0 or 0.2,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextColor3 = Info.DescriptionColor or "FontColor",
@@ -15158,7 +15158,7 @@ function Library:CreateWindow(WindowInfo)
                 Text = ButtonInfo.Title or ButtonIdx,
                 TextColor3 = TextColor,
                 TextTransparency = WaitTime > 0 and 0.5 or 0,
-                TextSize = 14,
+                TextSize = 18,
                 ZIndex = 2,
                 Parent = TextBtn,
             })
@@ -15636,19 +15636,19 @@ function Library:CreateWindow(WindowInfo)
         ConfigBox:AddLabel({
             Text = string.format("%s  ·  Place %s", tostring(game.Name or "Unknown"), tostring(game.PlaceId or 0)),
             DoesWrap = true,
-            Size = 12,
+            Size = 14,
         })
 
         local ConfigPathLabel = ConfigBox:AddLabel({
             Text = VeloriaConfig:GetFilePath(CurrentProfile),
             DoesWrap = true,
-            Size = 12,
+            Size = 14,
         })
 
         local StatusLabel = ConfigBox:AddLabel({
             Text = "Ready",
             DoesWrap = true,
-            Size = 12,
+            Size = 14,
         })
 
         local ProfileDropdown = ConfigBox:AddDropdown("VeloriaConfigProfile", {
@@ -15884,6 +15884,216 @@ function Library:CreateWindow(WindowInfo)
         end)
 
         Window.VeloriaConfigTab = SettingsTab
+
+        --// Veloria: FPS & Ping Floating Widget \\--
+        -- Posisi tetap di pojok kiri atas (kayak status bar iPhone), bukan draggable.
+        -- On/Off diatur dari Settings tab di bawah ini.
+
+        local StatsFrame = New("Frame", {
+            AnchorPoint = Vector2.new(0, 0),
+            BackgroundColor3 = Color3.fromRGB(15, 15, 15),
+            BackgroundTransparency = 0.25,
+            Position = UDim2.fromOffset(8, 8),
+            Size = UDim2.fromOffset(130, 36),
+            ZIndex = 999,
+            Parent = Floats,
+        })
+
+        New("UICorner", {
+            CornerRadius = UDim.new(0, 8),
+            Parent = StatsFrame,
+        })
+
+        New("UIStroke", {
+            Color = Color3.fromRGB(210, 35, 35),
+            Thickness = 1,
+            Transparency = 0.5,
+            Parent = StatsFrame,
+        })
+
+        local FpsLabel = New("TextLabel", {
+            AnchorPoint = Vector2.new(0, 0.5),
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 10, 0.5, 0),
+            Size = UDim2.fromOffset(55, 30),
+            Text = "FPS: --",
+            TextColor3 = Color3.fromRGB(255, 255, 255),
+            TextSize = 17,
+            FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.SemiBold),
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 1000,
+            Parent = StatsFrame,
+        })
+
+        local PingLabel = New("TextLabel", {
+            AnchorPoint = Vector2.new(1, 0.5),
+            BackgroundTransparency = 1,
+            Position = UDim2.new(1, -10, 0.5, 0),
+            Size = UDim2.fromOffset(55, 30),
+            Text = "-- ms",
+            TextColor3 = Color3.fromRGB(200, 200, 200),
+            TextSize = 17,
+            FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Regular),
+            TextXAlignment = Enum.TextXAlignment.Right,
+            ZIndex = 1000,
+            Parent = StatsFrame,
+        })
+
+        -- Divider vertikal kecil di tengah
+        New("Frame", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            BackgroundColor3 = Color3.fromRGB(210, 35, 35),
+            BackgroundTransparency = 0.5,
+            Position = UDim2.new(0.5, 0, 0.5, 0),
+            Size = UDim2.fromOffset(1, 18),
+            ZIndex = 1000,
+            Parent = StatsFrame,
+        })
+
+        -- State
+        local StatsVisible = true
+        local FrameCount = 0
+        local LastFPSTime = tick()
+        local CurrentFPS = 0
+
+        -- Color FPS sesuai angka
+        local function GetFPSColor(fps)
+            if fps >= 55 then
+                return Color3.fromRGB(80, 220, 100)  -- hijau
+            elseif fps >= 30 then
+                return Color3.fromRGB(230, 190, 50)   -- kuning
+            else
+                return Color3.fromRGB(230, 60, 60)    -- merah
+            end
+        end
+
+        -- RenderStepped untuk FPS (bukan Heartbeat, lebih akurat)
+        local StatsConnection = RunService.RenderStepped:Connect(function()
+            if not StatsVisible then return end
+
+            FrameCount = FrameCount + 1
+            local Now = tick()
+            local Delta = Now - LastFPSTime
+
+            if Delta >= 0.5 then
+                CurrentFPS = math.round(FrameCount / Delta)
+                FrameCount = 0
+                LastFPSTime = Now
+
+                FpsLabel.Text = "FPS: " .. tostring(CurrentFPS)
+                FpsLabel.TextColor3 = GetFPSColor(CurrentFPS)
+            end
+        end)
+
+        -- Ping update tiap 1 detik via Heartbeat
+        local PingTimer = 0
+        local PingConnection = RunService.Heartbeat:Connect(function(dt)
+            if not StatsVisible then return end
+
+            PingTimer = PingTimer + dt
+            if PingTimer >= 1 then
+                PingTimer = 0
+                local Ok, Ping = pcall(function()
+                    return math.round(LocalPlayer:GetNetworkPing() * 1000)
+                end)
+                if Ok then
+                    PingLabel.Text = tostring(Ping) .. " ms"
+                    -- Color ping
+                    if Ping <= 80 then
+                        PingLabel.TextColor3 = Color3.fromRGB(80, 220, 100)
+                    elseif Ping <= 150 then
+                        PingLabel.TextColor3 = Color3.fromRGB(230, 190, 50)
+                    else
+                        PingLabel.TextColor3 = Color3.fromRGB(230, 60, 60)
+                    end
+                else
+                    PingLabel.Text = "-- ms"
+                    PingLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
+                end
+            end
+        end)
+
+        -- Cleanup on unload
+        Library:OnUnload(function()
+            pcall(function() StatsConnection:Disconnect() end)
+            pcall(function() PingConnection:Disconnect() end)
+            pcall(function() StatsFrame:Destroy() end)
+        end)
+
+        -- Simpan ref
+        Window.StatsFrame = StatsFrame
+        Window.StatsConnection = StatsConnection
+        Window.PingConnection = PingConnection
+
+        -- Fungsi set visibility
+        local function SetStatsVisible(Value)
+            StatsVisible = Value
+            StatsFrame.Visible = Value
+        end
+
+        --// Settings box untuk FPS/Ping \\--
+        local PerfBox = SettingsTab:AddGroupbox({
+            Name = "Performance",
+            IconName = "activity",
+        })
+
+        PerfBox:AddToggle("VeloriaShowFPS", {
+            Text = "Show FPS",
+            Default = true,
+            Tooltip = "Toggle floating FPS display",
+            Callback = function(Value)
+                StatsFrame.Visible = Value and Toggles["VeloriaShowPing"] and Toggles["VeloriaShowPing"].Value or Value
+                FpsLabel.Visible = Value
+                StatsVisible = Value or (Toggles["VeloriaShowPing"] and Toggles["VeloriaShowPing"].Value or false)
+                -- Resize frame kalau salah satu mati
+                local ShowFps = Value
+                local ShowPing = Toggles["VeloriaShowPing"] and Toggles["VeloriaShowPing"].Value or false
+                if ShowFps and ShowPing then
+                    StatsFrame.Size = UDim2.fromOffset(130, 36)
+                    StatsFrame.Visible = true
+                    StatsVisible = true
+                elseif ShowFps then
+                    StatsFrame.Size = UDim2.fromOffset(90, 36)
+                    StatsFrame.Visible = true
+                    StatsVisible = true
+                elseif ShowPing then
+                    StatsFrame.Size = UDim2.fromOffset(90, 36)
+                    StatsFrame.Visible = true
+                    StatsVisible = true
+                else
+                    StatsFrame.Visible = false
+                    StatsVisible = false
+                end
+            end,
+        })
+
+        PerfBox:AddToggle("VeloriaShowPing", {
+            Text = "Show Ping",
+            Default = true,
+            Tooltip = "Toggle floating Ping display",
+            Callback = function(Value)
+                PingLabel.Visible = Value
+                local ShowFps = Toggles["VeloriaShowFPS"] and Toggles["VeloriaShowFPS"].Value or false
+                local ShowPing = Value
+                if ShowFps and ShowPing then
+                    StatsFrame.Size = UDim2.fromOffset(130, 36)
+                    StatsFrame.Visible = true
+                    StatsVisible = true
+                elseif ShowFps then
+                    StatsFrame.Size = UDim2.fromOffset(90, 36)
+                    StatsFrame.Visible = true
+                    StatsVisible = true
+                elseif ShowPing then
+                    StatsFrame.Size = UDim2.fromOffset(90, 36)
+                    StatsFrame.Visible = true
+                    StatsVisible = true
+                else
+                    StatsFrame.Visible = false
+                    StatsVisible = false
+                end
+            end,
+        })
+
     end
 
     return Window
@@ -16112,7 +16322,7 @@ function Library:CreateLoading(LoadingInfo)
         AutomaticSize = Loading.AutoResizeHeight and Enum.AutomaticSize.Y or Enum.AutomaticSize.XY,
         Size = Loading.AutoResizeHeight and UDim2.new(1, -60, 0, 0) or UDim2.fromOffset(0, 0),
         Text = "",
-        TextSize = 18,
+        TextSize = 20,
         TextWrapped = Loading.AutoResizeHeight,
         Parent = InnerContent,
     })
@@ -16122,7 +16332,7 @@ function Library:CreateLoading(LoadingInfo)
         AutomaticSize = Loading.AutoResizeHeight and Enum.AutomaticSize.Y or Enum.AutomaticSize.XY,
         Size = Loading.AutoResizeHeight and UDim2.new(1, -60, 0, 0) or UDim2.fromOffset(0, 0),
         Text = "",
-        TextSize = 14,
+        TextSize = 18,
         TextTransparency = 0.5,
         TextWrapped = Loading.AutoResizeHeight,
         Parent = InnerContent,
@@ -16149,7 +16359,7 @@ function Library:CreateLoading(LoadingInfo)
         BackgroundTransparency = 1,
         Size = UDim2.fromScale(1, 1),
         Text = "",
-        TextSize = 14,
+        TextSize = 18,
         ZIndex = 2,
         Parent = SliderBar,
     })
@@ -16226,7 +16436,7 @@ function Library:CreateLoading(LoadingInfo)
         Size = UDim2.new(1, -30, 0, 18),
         Text = "Error",
         TextColor3 = "RedColor",
-        TextSize = 18,
+        TextSize = 20,
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = ErrorFrame,
     })
@@ -16236,7 +16446,7 @@ function Library:CreateLoading(LoadingInfo)
         Position = UDim2.fromOffset(15, 39),
         Size = UDim2.new(1, -30, 1, -90),
         Text = "Error Message",
-        TextSize = 14,
+        TextSize = 18,
         TextTransparency = 0.2,
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -16518,7 +16728,7 @@ function Library:CreateLoading(LoadingInfo)
                 Size = UDim2.fromScale(1, 1),
                 Text = ButtonInfo.Title or Idx,
                 TextColor3 = TextColor,
-                TextSize = 14,
+                TextSize = 18,
                 Parent = TextBtn,
             })
 
