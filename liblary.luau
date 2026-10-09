@@ -15886,69 +15886,88 @@ function Library:CreateWindow(WindowInfo)
         Window.VeloriaConfigTab = SettingsTab
 
         --// Veloria: FPS & Ping Floating Widget \\--
-        -- Posisi tetap di pojok kiri atas (kayak status bar iPhone), bukan draggable.
-        -- On/Off diatur dari Settings tab di bawah ini.
+        -- ScreenGui sendiri — biar ga kena template/registry library sama sekali.
+        -- Posisi top-left fixed, kayak Dynamic Island / status bar iPhone.
 
-        local StatsFrame = New("Frame", {
-            AnchorPoint = Vector2.new(0, 0),
-            BackgroundColor3 = Color3.fromRGB(15, 15, 15),
-            BackgroundTransparency = 0.25,
-            Position = UDim2.fromOffset(8, 8),
-            Size = UDim2.fromOffset(130, 36),
-            ZIndex = 999,
-            Parent = Floats,
-        })
+        local StatsGui = Instance.new("ScreenGui")
+        StatsGui.Name = "VeloriaStats"
+        StatsGui.DisplayOrder = 1001
+        StatsGui.ResetOnSpawn = false
+        StatsGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+        pcall(protectgui, StatsGui)
+        pcall(function() SafeParentUI(StatsGui, gethui) end)
+        if not StatsGui.Parent then
+            StatsGui.Parent = CoreGui
+        end
 
-        New("UICorner", {
-            CornerRadius = UDim.new(0, 8),
-            Parent = StatsFrame,
-        })
+        local StatsFrame = Instance.new("Frame")
+        StatsFrame.Name = "StatsIsland"
+        StatsFrame.AnchorPoint = Vector2.new(0.5, 0)
+        StatsFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+        StatsFrame.BackgroundTransparency = 0.08
+        StatsFrame.BorderSizePixel = 0
+        StatsFrame.Position = UDim2.new(0.5, 0, 0, 10)
+        StatsFrame.Size = UDim2.fromOffset(140, 34)
+        StatsFrame.ZIndex = 1
+        StatsFrame.Parent = StatsGui
 
-        New("UIStroke", {
-            Color = Color3.fromRGB(210, 35, 35),
-            Thickness = 1,
-            Transparency = 0.5,
-            Parent = StatsFrame,
-        })
+        local StatsCorner = Instance.new("UICorner")
+        StatsCorner.CornerRadius = UDim.new(1, 0)
+        StatsCorner.Parent = StatsFrame
 
-        local FpsLabel = New("TextLabel", {
-            AnchorPoint = Vector2.new(0, 0.5),
-            BackgroundTransparency = 1,
-            Position = UDim2.new(0, 10, 0.5, 0),
-            Size = UDim2.fromOffset(55, 30),
-            Text = "FPS: --",
-            TextColor3 = Color3.fromRGB(255, 255, 255),
-            TextSize = 17,
-            FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.SemiBold),
-            TextXAlignment = Enum.TextXAlignment.Left,
-            ZIndex = 1000,
-            Parent = StatsFrame,
-        })
+        local StatsStroke = Instance.new("UIStroke")
+        StatsStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        StatsStroke.Color = Color3.fromRGB(210, 35, 35)
+        StatsStroke.Thickness = 1
+        StatsStroke.Transparency = 0.4
+        StatsStroke.Parent = StatsFrame
 
-        local PingLabel = New("TextLabel", {
-            AnchorPoint = Vector2.new(1, 0.5),
-            BackgroundTransparency = 1,
-            Position = UDim2.new(1, -10, 0.5, 0),
-            Size = UDim2.fromOffset(55, 30),
-            Text = "-- ms",
-            TextColor3 = Color3.fromRGB(200, 200, 200),
-            TextSize = 17,
-            FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Regular),
-            TextXAlignment = Enum.TextXAlignment.Right,
-            ZIndex = 1000,
-            Parent = StatsFrame,
-        })
+        local FpsLabel = Instance.new("TextLabel")
+        FpsLabel.Name = "FPS"
+        FpsLabel.AnchorPoint = Vector2.new(0, 0.5)
+        FpsLabel.BackgroundTransparency = 1
+        FpsLabel.BorderSizePixel = 0
+        FpsLabel.Position = UDim2.new(0, 12, 0.5, 0)
+        FpsLabel.Size = UDim2.fromOffset(52, 28)
+        FpsLabel.Text = "FPS: --"
+        FpsLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        FpsLabel.TextSize = 15
+        FpsLabel.Font = Enum.Font.GothamBold
+        FpsLabel.TextXAlignment = Enum.TextXAlignment.Left
+        FpsLabel.RichText = false
+        FpsLabel.ZIndex = 2
+        FpsLabel.Parent = StatsFrame
 
-        -- Divider vertikal kecil di tengah
-        New("Frame", {
-            AnchorPoint = Vector2.new(0.5, 0.5),
-            BackgroundColor3 = Color3.fromRGB(210, 35, 35),
-            BackgroundTransparency = 0.5,
-            Position = UDim2.new(0.5, 0, 0.5, 0),
-            Size = UDim2.fromOffset(1, 18),
-            ZIndex = 1000,
-            Parent = StatsFrame,
-        })
+        local Divider = Instance.new("Frame")
+        Divider.Name = "Divider"
+        Divider.AnchorPoint = Vector2.new(0.5, 0.5)
+        Divider.BackgroundColor3 = Color3.fromRGB(210, 35, 35)
+        Divider.BackgroundTransparency = 0.5
+        Divider.BorderSizePixel = 0
+        Divider.Position = UDim2.new(0.5, 0, 0.5, 0)
+        Divider.Size = UDim2.fromOffset(1, 16)
+        Divider.ZIndex = 2
+        Divider.Parent = StatsFrame
+
+        local PingLabel = Instance.new("TextLabel")
+        PingLabel.Name = "Ping"
+        PingLabel.AnchorPoint = Vector2.new(1, 0.5)
+        PingLabel.BackgroundTransparency = 1
+        PingLabel.BorderSizePixel = 0
+        PingLabel.Position = UDim2.new(1, -12, 0.5, 0)
+        PingLabel.Size = UDim2.fromOffset(58, 28)
+        PingLabel.Text = "-- ms"
+        PingLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+        PingLabel.TextSize = 15
+        PingLabel.Font = Enum.Font.Gotham
+        PingLabel.TextXAlignment = Enum.TextXAlignment.Right
+        PingLabel.RichText = false
+        PingLabel.ZIndex = 2
+        PingLabel.Parent = StatsFrame
+
+        Library:OnUnload(function()
+            pcall(function() StatsGui:Destroy() end)
+        end)
 
         -- State
         local StatsVisible = true
@@ -16013,22 +16032,49 @@ function Library:CreateWindow(WindowInfo)
             end
         end)
 
-        -- Cleanup on unload
+        -- Connections cleanup sudah ada di OnUnload atas (StatsGui:Destroy kills connections)
         Library:OnUnload(function()
             pcall(function() StatsConnection:Disconnect() end)
             pcall(function() PingConnection:Disconnect() end)
-            pcall(function() StatsFrame:Destroy() end)
         end)
 
         -- Simpan ref
+        Window.StatsGui = StatsGui
         Window.StatsFrame = StatsFrame
-        Window.StatsConnection = StatsConnection
-        Window.PingConnection = PingConnection
 
-        -- Fungsi set visibility
-        local function SetStatsVisible(Value)
-            StatsVisible = Value
-            StatsFrame.Visible = Value
+        -- Helper resize + visibility
+        local function UpdateStatsLayout()
+            local ShowFps = Toggles["VeloriaShowFPS"] and Toggles["VeloriaShowFPS"].Value ~= false
+            local ShowPing = Toggles["VeloriaShowPing"] and Toggles["VeloriaShowPing"].Value ~= false
+
+            FpsLabel.Visible = ShowFps
+            PingLabel.Visible = ShowPing
+            Divider.Visible = ShowFps and ShowPing
+
+            if ShowFps and ShowPing then
+                StatsFrame.Size = UDim2.fromOffset(140, 34)
+                StatsFrame.Visible = true
+                StatsVisible = true
+            elseif ShowFps then
+                StatsFrame.Size = UDim2.fromOffset(88, 34)
+                StatsFrame.Visible = true
+                FpsLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+                FpsLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
+                FpsLabel.Size = UDim2.fromOffset(72, 28)
+                FpsLabel.TextXAlignment = Enum.TextXAlignment.Center
+                StatsVisible = true
+            elseif ShowPing then
+                StatsFrame.Size = UDim2.fromOffset(88, 34)
+                StatsFrame.Visible = true
+                PingLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+                PingLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
+                PingLabel.Size = UDim2.fromOffset(72, 28)
+                PingLabel.TextXAlignment = Enum.TextXAlignment.Center
+                StatsVisible = true
+            else
+                StatsFrame.Visible = false
+                StatsVisible = false
+            end
         end
 
         --// Settings box untuk FPS/Ping \\--
@@ -16040,57 +16086,18 @@ function Library:CreateWindow(WindowInfo)
         PerfBox:AddToggle("VeloriaShowFPS", {
             Text = "Show FPS",
             Default = true,
-            Tooltip = "Toggle floating FPS display",
-            Callback = function(Value)
-                StatsFrame.Visible = Value and Toggles["VeloriaShowPing"] and Toggles["VeloriaShowPing"].Value or Value
-                FpsLabel.Visible = Value
-                StatsVisible = Value or (Toggles["VeloriaShowPing"] and Toggles["VeloriaShowPing"].Value or false)
-                -- Resize frame kalau salah satu mati
-                local ShowFps = Value
-                local ShowPing = Toggles["VeloriaShowPing"] and Toggles["VeloriaShowPing"].Value or false
-                if ShowFps and ShowPing then
-                    StatsFrame.Size = UDim2.fromOffset(130, 36)
-                    StatsFrame.Visible = true
-                    StatsVisible = true
-                elseif ShowFps then
-                    StatsFrame.Size = UDim2.fromOffset(90, 36)
-                    StatsFrame.Visible = true
-                    StatsVisible = true
-                elseif ShowPing then
-                    StatsFrame.Size = UDim2.fromOffset(90, 36)
-                    StatsFrame.Visible = true
-                    StatsVisible = true
-                else
-                    StatsFrame.Visible = false
-                    StatsVisible = false
-                end
+            Tooltip = "Toggle floating FPS counter",
+            Callback = function()
+                UpdateStatsLayout()
             end,
         })
 
         PerfBox:AddToggle("VeloriaShowPing", {
             Text = "Show Ping",
             Default = true,
-            Tooltip = "Toggle floating Ping display",
-            Callback = function(Value)
-                PingLabel.Visible = Value
-                local ShowFps = Toggles["VeloriaShowFPS"] and Toggles["VeloriaShowFPS"].Value or false
-                local ShowPing = Value
-                if ShowFps and ShowPing then
-                    StatsFrame.Size = UDim2.fromOffset(130, 36)
-                    StatsFrame.Visible = true
-                    StatsVisible = true
-                elseif ShowFps then
-                    StatsFrame.Size = UDim2.fromOffset(90, 36)
-                    StatsFrame.Visible = true
-                    StatsVisible = true
-                elseif ShowPing then
-                    StatsFrame.Size = UDim2.fromOffset(90, 36)
-                    StatsFrame.Visible = true
-                    StatsVisible = true
-                else
-                    StatsFrame.Visible = false
-                    StatsVisible = false
-                end
+            Tooltip = "Toggle floating Ping counter",
+            Callback = function()
+                UpdateStatsLayout()
             end,
         })
 
