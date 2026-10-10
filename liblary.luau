@@ -11961,7 +11961,9 @@ function Library:CreateWindow(WindowInfo)
             Size = UDim2.new(1, 0, 0, 48),
             Parent = MainFrame,
         })
-        -- Main window dragging is disabled; use the floating island to toggle it.
+        -- Restore window dragging from the unused header surface.
+        -- Child buttons retain their own click actions; no overlay is placed above them.
+        Library:MakeDraggable(MainFrame, TopBar, false, true, WindowSnapConfig)
 
         --// Title \\--
         TitleHolder = New("Frame", {
@@ -11970,6 +11972,8 @@ function Library:CreateWindow(WindowInfo)
             Size = UDim2.new(0, TopbarTitleWidth, 1, 0),
             Parent = TopBar,
         })
+        -- The title/logo region remains a dedicated drag target on desktop and touch.
+        Library:MakeDraggable(MainFrame, TitleHolder, false, true, WindowSnapConfig)
         New("UIListLayout", {
             FillDirection = Enum.FillDirection.Horizontal,
             HorizontalAlignment = Enum.HorizontalAlignment.Left,
@@ -15820,27 +15824,37 @@ function Library:CreateWindow(WindowInfo)
             end)
         end
 
-        ThemeBox:AddColorPicker("VeloriaCustomAccentColor", {
-            Title = "Accent Color",
-            Default = Library.Scheme.AccentColor or Color3.fromRGB(210, 35, 35),
-            Callback = function(Color)
-                if typeof(Color) == "Color3" then
-                    Library:SetAccentColor(Color)
-                    SaveAppearanceIfPossible()
-                end
-            end,
-        })
+        -- AddColorPicker is an addon on a label/toggle, not a Groupbox method.
+        -- Attach each picker to its own label to avoid the missing-method error.
+        local AccentColorLabel = ThemeBox:AddLabel("UI Accent Color")
+        if AccentColorLabel then
+            AccentColorLabel:AddColorPicker("VeloriaCustomAccentColor", {
+                Title = "UI Accent Color",
+                Default = Library.Scheme.AccentColor or Color3.fromRGB(210, 35, 35),
+                Tooltip = "Changes UI accents only; it does not tint or replace the background image.",
+                Callback = function(Color)
+                    if typeof(Color) == "Color3" then
+                        Library:SetAccentColor(Color)
+                        SaveAppearanceIfPossible()
+                    end
+                end,
+            })
+        end
 
-        ThemeBox:AddColorPicker("VeloriaCustomBackgroundTint", {
-            Title = "Background Tint",
-            Default = Color3.fromRGB(255, 255, 255),
-            Callback = function(Color)
-                if typeof(Color) == "Color3" then
-                    pcall(function() Window:SetBackgroundSettings(nil, nil, Color) end)
-                    SaveAppearanceIfPossible()
-                end
-            end,
-        })
+        local BackgroundTintLabel = ThemeBox:AddLabel("Background Image Tint")
+        if BackgroundTintLabel then
+            BackgroundTintLabel:AddColorPicker("VeloriaCustomBackgroundTint", {
+                Title = "Background Image Tint",
+                Default = (Window.Info and Window.Info.BackgroundImageColor3) or Color3.fromRGB(255, 255, 255),
+                Tooltip = "Tints only the background image; it does not change UI accent colors.",
+                Callback = function(Color)
+                    if typeof(Color) == "Color3" then
+                        pcall(function() Window:SetBackgroundSettings(nil, nil, Color) end)
+                        SaveAppearanceIfPossible()
+                    end
+                end,
+            })
+        end
 
         local BgBox = SettingsTab:AddGroupbox({
             Name = "Background",
@@ -17194,9 +17208,16 @@ end
 
 -- Shortcut: ganti warna accent (merah) tanpa rebuild window
 function Library:SetAccentColor(Color: Color3)
+    if typeof(Color) ~= "Color3" then
+        return
+    end
+
+    -- UI accent is intentionally independent of WindowInfo.BackgroundImageColor3.
+    -- The background-image tint can only be changed through SetBackgroundSettings.
     Library.Scheme.AccentColor = Color
     Library.Scheme.RedColor = Color
     Library.Scheme.DestructiveColor = Color
+    Library.Scheme.SidebarAccentColor = Color
     Library.Scheme.OutlineColor = Color3.fromRGB(
         math.floor(Color.R * 255 * 0.35),
         math.floor(Color.G * 255 * 0.35),
@@ -17204,10 +17225,12 @@ function Library:SetAccentColor(Color: Color3)
     )
     Library:UpdateColorsUsingRegistry()
 
-    -- Refresh tab icon colors
+    -- Refresh active-tab accents; do not touch the background image or its tint.
     for _, Tab in Library.Tabs do
         if Tab.Button then
-            Tab.Button.BackgroundColor3 = Color
+            pcall(function()
+                Tab.Button.BackgroundColor3 = Color
+            end)
         end
     end
 end
