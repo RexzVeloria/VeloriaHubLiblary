@@ -727,9 +727,11 @@ IconSize = UDim2.fromOffset(34, 34),
         -- Open UI floating button icon. Accepts Roblox asset IDs (rbxassetid://...)
         -- or any image URL supported by GetCustomIcon().
         OpenUIIcon = "rbxassetid://99716974769256",
-        OpenUIIconSize = 42,
-        OpenUIButtonSize = 44,
-        OpenUIShape = "Square", -- "Circle" or "Square"
+        OpenUIIconSize = 22,
+        OpenUIButtonSize = 46, -- island height
+        OpenUIIslandWidth = 148,
+        OpenUIIslandHeight = 46,
+        OpenUIShape = "Island", -- compact pill launcher
 
         UnlockMouseWhileOpen = true,
 
@@ -11912,7 +11914,7 @@ function Library:CreateWindow(WindowInfo)
             Size = UDim2.new(1, 0, 0, 48),
             Parent = MainFrame,
         })
-        Library:MakeDraggable(MainFrame, TopBar, false, true, WindowSnapConfig)
+        -- Main window dragging is disabled; use the floating island to toggle it.
 
         --// Title \\--
         TitleHolder = New("Frame", {
@@ -12324,23 +12326,8 @@ function Library:CreateWindow(WindowInfo)
 
         UpdateTopbarLayout()
 
-        -- Dedicated invisible drag handle.
-        -- Move/+ icon removed; dragging remains available from the center/title area.
-        local DragHandle = New("TextButton", {
-            AutoButtonColor = false,
-            BackgroundTransparency = 1,
-            BorderSizePixel = 0,
-            Text = "",
-            Position = UDim2.new(0, TopbarTitleWidth, 0, 0),
-            Size = UDim2.new(1, -(TopbarTitleWidth + 150), 1, 0),
-            ZIndex = TopBar.ZIndex,
-            Parent = TopBar,
-        })
-        Library:MakeDraggable(MainFrame, DragHandle, false, true, WindowSnapConfig)
-
-        -- Title itself remains a drag surface, so dragging still works even when
-        -- the transparent center handle is narrow on smaller screens.
-        Library:MakeDraggable(MainFrame, TitleHolder, false, true, WindowSnapConfig)
+        -- MainFrame intentionally has no drag handles. This prevents accidental
+        -- movement while scrolling or interacting with controls on mobile.
 
         --// Bottom Bar \\--
         BottomBackground = New("Frame", {
@@ -15481,15 +15468,32 @@ function Library:CreateWindow(WindowInfo)
     end
 
     if Library.IsMobile then
-        local ToggleButton = Library:AddDraggableButton("Toggle", function()
-            Library:Toggle()
-        end, true, true)
+        -- The island itself remains draggable. A short movement threshold keeps
+        -- a normal tap from being mistaken for a drag, so it can still toggle UI.
+        local ToggleButton = Library:AddDraggableButton({
+            Text = "Toggle",
+            Callback = function()
+                Library:Toggle()
+            end,
+            ExcludeScaling = true,
+            ExcludeDragging = true,
+        })
 
-        -- Veloria Open UI button: image-based, using the configured Roblox ID/URL.
         do
             local OpenButton = ToggleButton.Button
+            OpenButton.Name = "VeloriaFloatingIsland"
             OpenButton.Text = ""
-            OpenButton.Size = UDim2.fromOffset(WindowInfo.OpenUIButtonSize or 44, WindowInfo.OpenUIButtonSize or 44)
+            OpenButton.TextTransparency = 1
+            OpenButton.AutoButtonColor = false
+            OpenButton.BorderSizePixel = 0
+            OpenButton.BackgroundColor3 = Color3.fromRGB(12, 12, 14)
+            OpenButton.BackgroundTransparency = 0
+            OpenButton.Size = UDim2.fromOffset(
+                WindowInfo.OpenUIIslandWidth or 148,
+                WindowInfo.OpenUIIslandHeight or WindowInfo.OpenUIButtonSize or 46
+            )
+            OpenButton.ZIndex = 60
+            OpenButton.ClipsDescendants = false
 
             for _, Child in OpenButton:GetChildren() do
                 if Child:IsA("TextLabel") or Child:IsA("TextButton") then
@@ -15497,48 +15501,159 @@ function Library:CreateWindow(WindowInfo)
                 end
             end
 
-            local Icon = Library:GetCustomIcon(WindowInfo.OpenUIIcon or "rbxassetid://86790779748944")
-            if Icon then
-                local IconImage = New("ImageLabel", {
+            -- Capsule silhouette and a restrained dark gradient.
+            local IslandCorner = OpenButton:FindFirstChildOfClass("UICorner")
+            if IslandCorner then
+                IslandCorner.CornerRadius = UDim.new(1, 0)
+            else
+                New("UICorner", {
+                    Name = "VeloriaIslandCorner",
+                    CornerRadius = UDim.new(1, 0),
+                    Parent = OpenButton,
+                })
+            end
+
+            New("UIGradient", {
+                Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0, Color3.fromRGB(25, 25, 28)),
+                    ColorSequenceKeypoint.new(1, Color3.fromRGB(8, 8, 10)),
+                }),
+                Rotation = 0,
+                Parent = OpenButton,
+            })
+
+            local OutlineFound = false
+            for _, Child in OpenButton:GetChildren() do
+                if Child:IsA("UIStroke") then
+                    if not OutlineFound then
+                        Child.Color = Color3.fromRGB(83, 83, 91)
+                        Child.Thickness = 1
+                        Child.Transparency = 0.18
+                        OutlineFound = true
+                    else
+                        Child.Color = Color3.fromRGB(0, 0, 0)
+                        Child.Thickness = 2
+                        Child.Transparency = 0.12
+                    end
+                end
+            end
+
+            -- Logo plate at the left side of the floating island.
+            local LogoPlate = New("Frame", {
+                Name = "VeloriaLogoPlate",
+                BackgroundColor3 = Color3.fromRGB(21, 21, 24),
+                BorderSizePixel = 0,
+                Position = UDim2.fromOffset(7, 7),
+                Size = UDim2.fromOffset(32, 32),
+                ZIndex = 61,
+                Parent = OpenButton,
+            })
+            New("UICorner", {
+                CornerRadius = UDim.new(1, 0),
+                Parent = LogoPlate,
+            })
+            New("UIStroke", {
+                Color = Color3.fromRGB(75, 75, 83),
+                Thickness = 1,
+                Transparency = 0.35,
+                Parent = LogoPlate,
+            })
+
+            local LogoIcon = Library:GetCustomIcon(WindowInfo.OpenUIIcon or "rbxassetid://99716974769256")
+            if LogoIcon then
+                local LogoImage = New("ImageLabel", {
+                    Name = "VeloriaLogo",
                     AnchorPoint = Vector2.new(0.5, 0.5),
                     BackgroundTransparency = 1,
-                    ImageColor3 = "WhiteColor",
+                    ImageColor3 = Color3.new(1, 1, 1),
                     Position = UDim2.fromScale(0.5, 0.5),
-                    Size = UDim2.fromOffset(WindowInfo.OpenUIIconSize or 26, WindowInfo.OpenUIIconSize or 26),
+                    Size = UDim2.fromOffset(WindowInfo.OpenUIIconSize or 22, WindowInfo.OpenUIIconSize or 22),
                     ScaleType = Enum.ScaleType.Fit,
-                    Rotation = 0,
-                    Parent = OpenButton,
+                    ZIndex = 62,
+                    Parent = LogoPlate,
                 })
                 New("UIAspectRatioConstraint", {
                     AspectRatio = 1,
-                    Parent = IconImage,
+                    Parent = LogoImage,
                 })
-                Library:ApplyLucideIcon(IconImage, Icon)
-                IconImage.Rotation = 0
+                Library:ApplyLucideIcon(LogoImage, LogoIcon)
+            else
+                New("TextLabel", {
+                    Name = "VeloriaLogoFallback",
+                    BackgroundTransparency = 1,
+                    Text = "VH",
+                    TextColor3 = Color3.fromRGB(245, 245, 248),
+                    TextSize = 12,
+                    Font = Enum.Font.GothamBold,
+                    Size = UDim2.fromScale(1, 1),
+                    ZIndex = 62,
+                    Parent = LogoPlate,
+                })
             end
 
-            if string.lower(WindowInfo.OpenUIShape or "Circle") == "circle" then
-                local Circle = OpenButton:FindFirstChild("OpenUIShapeCorner")
-                if not Circle then
-                    Circle = New("UICorner", {
-                        Name = "OpenUIShapeCorner",
-                        CornerRadius = UDim.new(1, 0),
-                        Parent = OpenButton,
-                    })
-                else
-                    Circle.CornerRadius = UDim.new(1, 0)
-                end
-            end
+            -- Fine divider separates the logo from the label.
+            New("Frame", {
+                Name = "VeloriaIslandDivider",
+                BackgroundColor3 = Color3.fromRGB(115, 115, 122),
+                BackgroundTransparency = 0.55,
+                BorderSizePixel = 0,
+                Position = UDim2.fromOffset(45, 12),
+                Size = UDim2.fromOffset(1, 22),
+                ZIndex = 61,
+                Parent = OpenButton,
+            })
+
+            New("TextLabel", {
+                Name = "VeloriaIslandTitle",
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                Position = UDim2.fromOffset(53, 7),
+                Size = UDim2.fromOffset(78, 15),
+                Font = Enum.Font.GothamBold,
+                Text = "VELORIA HUB",
+                TextColor3 = Color3.fromRGB(246, 246, 249),
+                TextSize = 11,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextYAlignment = Enum.TextYAlignment.Center,
+                ZIndex = 62,
+                Parent = OpenButton,
+            })
+            New("TextLabel", {
+                Name = "VeloriaIslandSubtitle",
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                Position = UDim2.fromOffset(53, 23),
+                Size = UDim2.fromOffset(78, 11),
+                Font = Enum.Font.Gotham,
+                Text = "TAP TO TOGGLE",
+                TextColor3 = Color3.fromRGB(155, 155, 163),
+                TextSize = 8,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextYAlignment = Enum.TextYAlignment.Center,
+                ZIndex = 62,
+                Parent = OpenButton,
+            })
+            local StatusDot = New("Frame", {
+                Name = "VeloriaIslandStatus",
+                BackgroundColor3 = Color3.fromRGB(230, 230, 235),
+                BorderSizePixel = 0,
+                Position = UDim2.new(1, -11, 0.5, -3),
+                Size = UDim2.fromOffset(5, 5),
+                ZIndex = 62,
+                Parent = OpenButton,
+            })
+            New("UICorner", {
+                CornerRadius = UDim.new(1, 0),
+                Parent = StatusDot,
+            })
         end
 
         if WindowInfo.MobileButtonsSide == "Right" then
             ToggleButton.Button.AnchorPoint = Vector2.new(1, 0)
-            ToggleButton.Button.Position = UDim2.new(1, -6, 0, 6)
-
+            ToggleButton.Button.Position = UDim2.new(1, -10, 0, 10)
         else
             ToggleButton.Button.AnchorPoint = Vector2.new(0, 0)
-            ToggleButton.Button.Position = UDim2.fromOffset(6, 6)
-
+            ToggleButton.Button.Position = UDim2.fromOffset(10, 10)
         end
 
         if WindowInfo.ShowMobileButtons == false then
