@@ -727,11 +727,9 @@ IconSize = UDim2.fromOffset(34, 34),
         -- Open UI floating button icon. Accepts Roblox asset IDs (rbxassetid://...)
         -- or any image URL supported by GetCustomIcon().
         OpenUIIcon = "rbxassetid://99716974769256",
-        OpenUIIconSize = 22,
-        OpenUIButtonSize = 46, -- island height
-        OpenUIIslandWidth = 148,
-        OpenUIIslandHeight = 46,
-        OpenUIShape = "Island", -- compact pill launcher
+        OpenUIIconSize = 42,
+        OpenUIButtonSize = 44,
+        OpenUIShape = "Square", -- "Circle" or "Square"
 
         UnlockMouseWhileOpen = true,
 
@@ -15468,32 +15466,15 @@ function Library:CreateWindow(WindowInfo)
     end
 
     if Library.IsMobile then
-        -- The island itself remains draggable. A short movement threshold keeps
-        -- a normal tap from being mistaken for a drag, so it can still toggle UI.
-        local ToggleButton = Library:AddDraggableButton({
-            Text = "Toggle",
-            Callback = function()
-                Library:Toggle()
-            end,
-            ExcludeScaling = true,
-            ExcludeDragging = true,
-        })
+        local ToggleButton = Library:AddDraggableButton("Toggle", function()
+            Library:Toggle()
+        end, true, true)
 
+        -- Veloria Open UI button: image-based, using the configured Roblox ID/URL.
         do
             local OpenButton = ToggleButton.Button
-            OpenButton.Name = "VeloriaFloatingIsland"
             OpenButton.Text = ""
-            OpenButton.TextTransparency = 1
-            OpenButton.AutoButtonColor = false
-            OpenButton.BorderSizePixel = 0
-            OpenButton.BackgroundColor3 = Color3.fromRGB(12, 12, 14)
-            OpenButton.BackgroundTransparency = 0
-            OpenButton.Size = UDim2.fromOffset(
-                WindowInfo.OpenUIIslandWidth or 148,
-                WindowInfo.OpenUIIslandHeight or WindowInfo.OpenUIButtonSize or 46
-            )
-            OpenButton.ZIndex = 60
-            OpenButton.ClipsDescendants = false
+            OpenButton.Size = UDim2.fromOffset(WindowInfo.OpenUIButtonSize or 44, WindowInfo.OpenUIButtonSize or 44)
 
             for _, Child in OpenButton:GetChildren() do
                 if Child:IsA("TextLabel") or Child:IsA("TextButton") then
@@ -15501,159 +15482,48 @@ function Library:CreateWindow(WindowInfo)
                 end
             end
 
-            -- Capsule silhouette and a restrained dark gradient.
-            local IslandCorner = OpenButton:FindFirstChildOfClass("UICorner")
-            if IslandCorner then
-                IslandCorner.CornerRadius = UDim.new(1, 0)
-            else
-                New("UICorner", {
-                    Name = "VeloriaIslandCorner",
-                    CornerRadius = UDim.new(1, 0),
-                    Parent = OpenButton,
-                })
-            end
-
-            New("UIGradient", {
-                Color = ColorSequence.new({
-                    ColorSequenceKeypoint.new(0, Color3.fromRGB(25, 25, 28)),
-                    ColorSequenceKeypoint.new(1, Color3.fromRGB(8, 8, 10)),
-                }),
-                Rotation = 0,
-                Parent = OpenButton,
-            })
-
-            local OutlineFound = false
-            for _, Child in OpenButton:GetChildren() do
-                if Child:IsA("UIStroke") then
-                    if not OutlineFound then
-                        Child.Color = Color3.fromRGB(83, 83, 91)
-                        Child.Thickness = 1
-                        Child.Transparency = 0.18
-                        OutlineFound = true
-                    else
-                        Child.Color = Color3.fromRGB(0, 0, 0)
-                        Child.Thickness = 2
-                        Child.Transparency = 0.12
-                    end
-                end
-            end
-
-            -- Logo plate at the left side of the floating island.
-            local LogoPlate = New("Frame", {
-                Name = "VeloriaLogoPlate",
-                BackgroundColor3 = Color3.fromRGB(21, 21, 24),
-                BorderSizePixel = 0,
-                Position = UDim2.fromOffset(7, 7),
-                Size = UDim2.fromOffset(32, 32),
-                ZIndex = 61,
-                Parent = OpenButton,
-            })
-            New("UICorner", {
-                CornerRadius = UDim.new(1, 0),
-                Parent = LogoPlate,
-            })
-            New("UIStroke", {
-                Color = Color3.fromRGB(75, 75, 83),
-                Thickness = 1,
-                Transparency = 0.35,
-                Parent = LogoPlate,
-            })
-
-            local LogoIcon = Library:GetCustomIcon(WindowInfo.OpenUIIcon or "rbxassetid://99716974769256")
-            if LogoIcon then
-                local LogoImage = New("ImageLabel", {
-                    Name = "VeloriaLogo",
+            local Icon = Library:GetCustomIcon(WindowInfo.OpenUIIcon or "rbxassetid://86790779748944")
+            if Icon then
+                local IconImage = New("ImageLabel", {
                     AnchorPoint = Vector2.new(0.5, 0.5),
                     BackgroundTransparency = 1,
-                    ImageColor3 = Color3.new(1, 1, 1),
+                    ImageColor3 = "WhiteColor",
                     Position = UDim2.fromScale(0.5, 0.5),
-                    Size = UDim2.fromOffset(WindowInfo.OpenUIIconSize or 22, WindowInfo.OpenUIIconSize or 22),
+                    Size = UDim2.fromOffset(WindowInfo.OpenUIIconSize or 26, WindowInfo.OpenUIIconSize or 26),
                     ScaleType = Enum.ScaleType.Fit,
-                    ZIndex = 62,
-                    Parent = LogoPlate,
+                    Rotation = 0,
+                    Parent = OpenButton,
                 })
                 New("UIAspectRatioConstraint", {
                     AspectRatio = 1,
-                    Parent = LogoImage,
+                    Parent = IconImage,
                 })
-                Library:ApplyLucideIcon(LogoImage, LogoIcon)
-            else
-                New("TextLabel", {
-                    Name = "VeloriaLogoFallback",
-                    BackgroundTransparency = 1,
-                    Text = "VH",
-                    TextColor3 = Color3.fromRGB(245, 245, 248),
-                    TextSize = 12,
-                    Font = Enum.Font.GothamBold,
-                    Size = UDim2.fromScale(1, 1),
-                    ZIndex = 62,
-                    Parent = LogoPlate,
-                })
+                Library:ApplyLucideIcon(IconImage, Icon)
+                IconImage.Rotation = 0
             end
 
-            -- Fine divider separates the logo from the label.
-            New("Frame", {
-                Name = "VeloriaIslandDivider",
-                BackgroundColor3 = Color3.fromRGB(115, 115, 122),
-                BackgroundTransparency = 0.55,
-                BorderSizePixel = 0,
-                Position = UDim2.fromOffset(45, 12),
-                Size = UDim2.fromOffset(1, 22),
-                ZIndex = 61,
-                Parent = OpenButton,
-            })
-
-            New("TextLabel", {
-                Name = "VeloriaIslandTitle",
-                BackgroundTransparency = 1,
-                BorderSizePixel = 0,
-                Position = UDim2.fromOffset(53, 7),
-                Size = UDim2.fromOffset(78, 15),
-                Font = Enum.Font.GothamBold,
-                Text = "VELORIA HUB",
-                TextColor3 = Color3.fromRGB(246, 246, 249),
-                TextSize = 11,
-                TextXAlignment = Enum.TextXAlignment.Left,
-                TextYAlignment = Enum.TextYAlignment.Center,
-                ZIndex = 62,
-                Parent = OpenButton,
-            })
-            New("TextLabel", {
-                Name = "VeloriaIslandSubtitle",
-                BackgroundTransparency = 1,
-                BorderSizePixel = 0,
-                Position = UDim2.fromOffset(53, 23),
-                Size = UDim2.fromOffset(78, 11),
-                Font = Enum.Font.Gotham,
-                Text = "TAP TO TOGGLE",
-                TextColor3 = Color3.fromRGB(155, 155, 163),
-                TextSize = 8,
-                TextXAlignment = Enum.TextXAlignment.Left,
-                TextYAlignment = Enum.TextYAlignment.Center,
-                ZIndex = 62,
-                Parent = OpenButton,
-            })
-            local StatusDot = New("Frame", {
-                Name = "VeloriaIslandStatus",
-                BackgroundColor3 = Color3.fromRGB(230, 230, 235),
-                BorderSizePixel = 0,
-                Position = UDim2.new(1, -11, 0.5, -3),
-                Size = UDim2.fromOffset(5, 5),
-                ZIndex = 62,
-                Parent = OpenButton,
-            })
-            New("UICorner", {
-                CornerRadius = UDim.new(1, 0),
-                Parent = StatusDot,
-            })
+            if string.lower(WindowInfo.OpenUIShape or "Circle") == "circle" then
+                local Circle = OpenButton:FindFirstChild("OpenUIShapeCorner")
+                if not Circle then
+                    Circle = New("UICorner", {
+                        Name = "OpenUIShapeCorner",
+                        CornerRadius = UDim.new(1, 0),
+                        Parent = OpenButton,
+                    })
+                else
+                    Circle.CornerRadius = UDim.new(1, 0)
+                end
+            end
         end
 
         if WindowInfo.MobileButtonsSide == "Right" then
             ToggleButton.Button.AnchorPoint = Vector2.new(1, 0)
-            ToggleButton.Button.Position = UDim2.new(1, -10, 0, 10)
+            ToggleButton.Button.Position = UDim2.new(1, -6, 0, 6)
+
         else
             ToggleButton.Button.AnchorPoint = Vector2.new(0, 0)
-            ToggleButton.Button.Position = UDim2.fromOffset(10, 10)
+            ToggleButton.Button.Position = UDim2.fromOffset(6, 6)
+
         end
 
         if WindowInfo.ShowMobileButtons == false then
@@ -16027,17 +15897,70 @@ function Library:CreateWindow(WindowInfo)
             StatsGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
         end
 
+        -- Container for the complete FPS/Ping island and the Veloria logo.
+        -- The group is draggable, while the main library window remains fixed.
+        local StatsContainer = Instance.new("Frame")
+        StatsContainer.Name = "StatsIslandContainer"
+        StatsContainer.AnchorPoint = Vector2.new(0.5, 0)
+        StatsContainer.BackgroundTransparency = 1
+        StatsContainer.BorderSizePixel = 0
+        StatsContainer.Position = UDim2.new(0.5, 0, 0, 6)
+        StatsContainer.Size = UDim2.fromOffset(182, 38)
+        StatsContainer.ZIndex = 9
+        StatsContainer.Parent = StatsGui
+
+        -- Veloria mark beside the FPS/Ping pill.
+        local LogoPlate = Instance.new("Frame")
+        LogoPlate.Name = "VeloriaLogoPlate"
+        LogoPlate.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+        LogoPlate.BackgroundTransparency = 0.02
+        LogoPlate.BorderSizePixel = 0
+        LogoPlate.Position = UDim2.fromOffset(1, 2)
+        LogoPlate.Size = UDim2.fromOffset(34, 34)
+        LogoPlate.ZIndex = 10
+        LogoPlate.Parent = StatsContainer
+
+        local LogoCorner = Instance.new("UICorner")
+        LogoCorner.CornerRadius = UDim.new(0, 11)
+        LogoCorner.Parent = LogoPlate
+
+        local LogoStroke = Instance.new("UIStroke")
+        LogoStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        LogoStroke.Color = Color3.fromRGB(145, 35, 45)
+        LogoStroke.Thickness = 1
+        LogoStroke.Transparency = 0.28
+        LogoStroke.Parent = LogoPlate
+
+        local LogoImage = Instance.new("ImageLabel")
+        LogoImage.Name = "VeloriaLogo"
+        LogoImage.AnchorPoint = Vector2.new(0.5, 0.5)
+        LogoImage.BackgroundTransparency = 1
+        LogoImage.BorderSizePixel = 0
+        LogoImage.Position = UDim2.fromScale(0.5, 0.5)
+        LogoImage.Size = UDim2.fromOffset(23, 23)
+        LogoImage.ImageColor3 = Color3.new(1, 1, 1)
+        LogoImage.ScaleType = Enum.ScaleType.Fit
+        LogoImage.ZIndex = 11
+        LogoImage.Parent = LogoPlate
+
+        local LogoIcon = Library:GetCustomIcon(WindowInfo.OpenUIIcon or "rbxassetid://99716974769256")
+        if LogoIcon then
+            Library:ApplyLucideIcon(LogoImage, LogoIcon)
+        else
+            LogoImage.Image = WindowInfo.OpenUIIcon or "rbxassetid://99716974769256"
+        end
+
         local StatsFrame = Instance.new("Frame")
-        StatsFrame.Name = "StatsIsland"
-        StatsFrame.AnchorPoint = Vector2.new(0.5, 0)
+        StatsFrame.Name = "StatsFrame"
+        StatsFrame.AnchorPoint = Vector2.new(0, 0)
         StatsFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
-        StatsFrame.BackgroundTransparency = 0.05
+        StatsFrame.BackgroundTransparency = 0.04
         StatsFrame.BorderSizePixel = 0
-        StatsFrame.Active = false    -- tidak bisa di-drag / di-klik
-        StatsFrame.Position = UDim2.new(0.5, 0, 0, 6)
-        StatsFrame.Size = UDim2.fromOffset(148, 32)
+        StatsFrame.Active = false
+        StatsFrame.Position = UDim2.fromOffset(40, 2)
+        StatsFrame.Size = UDim2.fromOffset(140, 34)
         StatsFrame.ZIndex = 10
-        StatsFrame.Parent = StatsGui
+        StatsFrame.Parent = StatsContainer
 
         local StatsCorner = Instance.new("UICorner")
         StatsCorner.CornerRadius = UDim.new(1, 0)
@@ -16045,9 +15968,9 @@ function Library:CreateWindow(WindowInfo)
 
         local StatsStroke = Instance.new("UIStroke")
         StatsStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-        StatsStroke.Color = Color3.fromRGB(210, 35, 35)
+        StatsStroke.Color = Color3.fromRGB(210, 35, 45)
         StatsStroke.Thickness = 1
-        StatsStroke.Transparency = 0.4
+        StatsStroke.Transparency = 0.28
         StatsStroke.Parent = StatsFrame
 
         local FpsLabel = Instance.new("TextLabel")
@@ -16059,22 +15982,22 @@ function Library:CreateWindow(WindowInfo)
         FpsLabel.Size = UDim2.fromOffset(52, 28)
         FpsLabel.Text = "FPS: --"
         FpsLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        FpsLabel.TextSize = 15
+        FpsLabel.TextSize = 14
         FpsLabel.Font = Enum.Font.GothamBold
         FpsLabel.TextXAlignment = Enum.TextXAlignment.Left
         FpsLabel.RichText = false
-        FpsLabel.ZIndex = 2
+        FpsLabel.ZIndex = 12
         FpsLabel.Parent = StatsFrame
 
         local Divider = Instance.new("Frame")
         Divider.Name = "Divider"
         Divider.AnchorPoint = Vector2.new(0.5, 0.5)
-        Divider.BackgroundColor3 = Color3.fromRGB(210, 35, 35)
-        Divider.BackgroundTransparency = 0.5
+        Divider.BackgroundColor3 = Color3.fromRGB(210, 35, 45)
+        Divider.BackgroundTransparency = 0.35
         Divider.BorderSizePixel = 0
         Divider.Position = UDim2.new(0.5, 0, 0.5, 0)
         Divider.Size = UDim2.fromOffset(1, 16)
-        Divider.ZIndex = 2
+        Divider.ZIndex = 12
         Divider.Parent = StatsFrame
 
         local PingLabel = Instance.new("TextLabel")
@@ -16086,12 +16009,96 @@ function Library:CreateWindow(WindowInfo)
         PingLabel.Size = UDim2.fromOffset(58, 28)
         PingLabel.Text = "-- ms"
         PingLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-        PingLabel.TextSize = 15
+        PingLabel.TextSize = 14
         PingLabel.Font = Enum.Font.Gotham
         PingLabel.TextXAlignment = Enum.TextXAlignment.Right
         PingLabel.RichText = false
-        PingLabel.ZIndex = 2
+        PingLabel.ZIndex = 12
         PingLabel.Parent = StatsFrame
+
+        -- Invisible input surface above the non-interactive stats, so the whole
+        -- island can be dragged by mouse or touch without changing the UI button.
+        local StatsDragSurface = Instance.new("TextButton")
+        StatsDragSurface.Name = "StatsDragSurface"
+        StatsDragSurface.BackgroundTransparency = 1
+        StatsDragSurface.BorderSizePixel = 0
+        StatsDragSurface.AutoButtonColor = false
+        StatsDragSurface.Text = ""
+        StatsDragSurface.TextTransparency = 1
+        StatsDragSurface.Position = UDim2.fromScale(0, 0)
+        StatsDragSurface.Size = UDim2.fromScale(1, 1)
+        StatsDragSurface.ZIndex = 20
+        StatsDragSurface.Parent = StatsContainer
+
+        local StatsDragging = false
+        local StatsDragStart = nil
+        local StatsStartPosition = nil
+        local StatsDragInput = nil
+        local StatsDragEndConnection = nil
+
+        local StatsDragBeganConnection = StatsDragSurface.InputBegan:Connect(function(Input)
+            if Input.UserInputType ~= Enum.UserInputType.MouseButton1
+                and Input.UserInputType ~= Enum.UserInputType.Touch then
+                return
+            end
+
+            StatsDragging = true
+            StatsDragStart = Input.Position
+            StatsStartPosition = StatsContainer.Position
+            StatsDragInput = Input.UserInputType == Enum.UserInputType.Touch and Input or nil
+
+            if StatsDragEndConnection then
+                StatsDragEndConnection:Disconnect()
+                StatsDragEndConnection = nil
+            end
+            StatsDragEndConnection = Input.Changed:Connect(function()
+                if Input.UserInputState == Enum.UserInputState.End then
+                    StatsDragging = false
+                    StatsDragInput = nil
+                    if StatsDragEndConnection then
+                        StatsDragEndConnection:Disconnect()
+                        StatsDragEndConnection = nil
+                    end
+                end
+            end)
+        end)
+
+        local StatsDragChangedConnection = StatsDragSurface.InputChanged:Connect(function(Input)
+            if Input.UserInputType == Enum.UserInputType.MouseMovement
+                or Input.UserInputType == Enum.UserInputType.Touch then
+                StatsDragInput = Input
+            end
+        end)
+
+        local StatsGlobalDragConnection = UserInputService.InputChanged:Connect(function(Input)
+            if not StatsDragging or not StatsDragStart or not StatsStartPosition then
+                return
+            end
+            if Input.UserInputType ~= Enum.UserInputType.MouseMovement and Input ~= StatsDragInput then
+                return
+            end
+
+            local Delta = Input.Position - StatsDragStart
+            local Viewport = (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize) or Vector2.new(1920, 1080)
+            local Width = StatsContainer.AbsoluteSize.X
+            local Height = StatsContainer.AbsoluteSize.Y
+            local StartCenterX = StatsStartPosition.X.Scale * Viewport.X + StatsStartPosition.X.Offset
+            local StartTopY = StatsStartPosition.Y.Scale * Viewport.Y + StatsStartPosition.Y.Offset
+            local NewCenterX = math.clamp(StartCenterX + Delta.X, Width / 2 + 6, Viewport.X - Width / 2 - 6)
+            local NewTopY = math.clamp(StartTopY + Delta.Y, 6, Viewport.Y - Height - 6)
+
+            StatsContainer.Position = UDim2.fromOffset(NewCenterX, NewTopY)
+        end)
+
+        Library:GiveSignal(StatsDragBeganConnection)
+        Library:GiveSignal(StatsDragChangedConnection)
+        Library:GiveSignal(StatsGlobalDragConnection)
+        Library:OnUnload(function()
+            if StatsDragEndConnection then
+                pcall(function() StatsDragEndConnection:Disconnect() end)
+                StatsDragEndConnection = nil
+            end
+        end)
 
         Library:OnUnload(function()
             pcall(function() StatsGui:Destroy() end)
@@ -16169,6 +16176,7 @@ function Library:CreateWindow(WindowInfo)
         -- Simpan ref
         Window.StatsGui = StatsGui
         Window.StatsFrame = StatsFrame
+        Window.StatsContainer = StatsContainer
 
         -- Helper resize + visibility
         local function UpdateStatsLayout()
@@ -16179,28 +16187,45 @@ function Library:CreateWindow(WindowInfo)
             PingLabel.Visible = ShowPing
             Divider.Visible = ShowFps and ShowPing
 
+            -- Reset both labels before applying a single-stat layout.
+            FpsLabel.AnchorPoint = Vector2.new(0, 0.5)
+            FpsLabel.Position = UDim2.new(0, 12, 0.5, 0)
+            FpsLabel.Size = UDim2.fromOffset(52, 28)
+            FpsLabel.TextXAlignment = Enum.TextXAlignment.Left
+            PingLabel.AnchorPoint = Vector2.new(1, 0.5)
+            PingLabel.Position = UDim2.new(1, -12, 0.5, 0)
+            PingLabel.Size = UDim2.fromOffset(58, 28)
+            PingLabel.TextXAlignment = Enum.TextXAlignment.Right
+
+            StatsFrame.Position = UDim2.fromOffset(40, 2)
             if ShowFps and ShowPing then
+                StatsContainer.Size = UDim2.fromOffset(182, 38)
                 StatsFrame.Size = UDim2.fromOffset(140, 34)
                 StatsFrame.Visible = true
+                StatsContainer.Visible = true
                 StatsVisible = true
             elseif ShowFps then
+                StatsContainer.Size = UDim2.fromOffset(130, 38)
                 StatsFrame.Size = UDim2.fromOffset(88, 34)
-                StatsFrame.Visible = true
                 FpsLabel.AnchorPoint = Vector2.new(0.5, 0.5)
                 FpsLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
                 FpsLabel.Size = UDim2.fromOffset(72, 28)
                 FpsLabel.TextXAlignment = Enum.TextXAlignment.Center
+                StatsFrame.Visible = true
+                StatsContainer.Visible = true
                 StatsVisible = true
             elseif ShowPing then
+                StatsContainer.Size = UDim2.fromOffset(130, 38)
                 StatsFrame.Size = UDim2.fromOffset(88, 34)
-                StatsFrame.Visible = true
                 PingLabel.AnchorPoint = Vector2.new(0.5, 0.5)
                 PingLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
                 PingLabel.Size = UDim2.fromOffset(72, 28)
                 PingLabel.TextXAlignment = Enum.TextXAlignment.Center
+                StatsFrame.Visible = true
+                StatsContainer.Visible = true
                 StatsVisible = true
             else
-                StatsFrame.Visible = false
+                StatsContainer.Visible = false
                 StatsVisible = false
             end
         end
@@ -16228,6 +16253,8 @@ function Library:CreateWindow(WindowInfo)
                 UpdateStatsLayout()
             end,
         })
+
+        UpdateStatsLayout()
 
     end
 
