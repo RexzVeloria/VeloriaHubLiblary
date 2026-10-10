@@ -4,4 +4,5 @@ return {
     Boy = "https://cdn.phototourl.com/member/2026-10-10-9baded0d-842c-4b4e-bff3-5a45657bf510.jpg",
     Mount = "https://cdn.phototourl.com/member/2026-10-10-c35e2319-d72f-4897-94f3-af3350730207.jpg",
     Tree = "https://cdn.phototourl.com/member/2026-10-10-27342fcd-4295-4bb1-aa98-cbca2160b1cb.jpg",
+    Anime = "https://cdn.phototourl.com/member/2026-10-10-6c77d35e-7942-4911-b4b7-5721e0da190b.jpg",
 }
