@@ -2326,6 +2326,19 @@ function VeloriaConfig:BuildSnapshot()
         game_name = tostring(game.Name or "Unknown"),
         saved_at = os.time(),
         options = {},
+        visual = {
+            accent = (Library.Scheme and Library.Scheme.AccentColor) and {
+                r = Library.Scheme.AccentColor.R, g = Library.Scheme.AccentColor.G, b = Library.Scheme.AccentColor.B
+            } or nil,
+            backgroundImage = (Library.ActiveWindow and Library.ActiveWindow.Info and Library.ActiveWindow.Info.BackgroundImage)
+                or (Library.Scheme and Library.Scheme.BackgroundImage) or "",
+            backgroundTransparency = (Library.ActiveWindow and Library.ActiveWindow.Info and Library.ActiveWindow.Info.BackgroundImageTransparency) or 0.82,
+            backgroundTint = (Library.ActiveWindow and Library.ActiveWindow.Info and Library.ActiveWindow.Info.BackgroundImageColor3) and {
+                r = Library.ActiveWindow.Info.BackgroundImageColor3.R,
+                g = Library.ActiveWindow.Info.BackgroundImageColor3.G,
+                b = Library.ActiveWindow.Info.BackgroundImageColor3.B,
+            } or nil,
+        },
     }
 
     local Added = {}
@@ -2535,6 +2548,42 @@ function VeloriaConfig:ApplySnapshot(Snapshot): (boolean, string)
             end
         else
             Skipped += 1
+        end
+    end
+
+    -- Restore theme/background from the same profile as feature options.
+    local Visual = Snapshot.visual
+    if typeof(Visual) == "table" then
+        if typeof(Visual.accent) == "table" then
+            local C = Visual.accent
+            pcall(function()
+                Library:SetAccentColor(Color3.new(
+                    math.clamp(tonumber(C.r) or 1, 0, 1),
+                    math.clamp(tonumber(C.g) or 0, 0, 1),
+                    math.clamp(tonumber(C.b) or 0, 0, 1)
+                ))
+            end)
+        end
+        if Library.ActiveWindow then
+            if typeof(Visual.backgroundImage) == "string" and Visual.backgroundImage ~= "" then
+                pcall(function() Library.ActiveWindow:SetBackgroundImage(Visual.backgroundImage) end)
+            end
+            local Tint
+            if typeof(Visual.backgroundTint) == "table" then
+                local C = Visual.backgroundTint
+                Tint = Color3.new(
+                    math.clamp(tonumber(C.r) or 1, 0, 1),
+                    math.clamp(tonumber(C.g) or 1, 0, 1),
+                    math.clamp(tonumber(C.b) or 1, 0, 1)
+                )
+            end
+            pcall(function()
+                Library.ActiveWindow:SetBackgroundSettings(
+                    tonumber(Visual.backgroundTransparency) or 0.82,
+                    nil,
+                    Tint
+                )
+            end)
         end
     end
 
@@ -12612,15 +12661,33 @@ function Library:CreateWindow(WindowInfo)
                             end
                         end
 
-                        if CustomImageManagerAssets[FileName] == nil then
-                            CustomImageManager.AddAsset(FileName, 0, Source)
-                        else
-                            CustomImageManager.DownloadAsset(FileName, true)
+                        local AssetId
+                        local ManagerReady = type(CustomImageManager) == "table"
+                            and type(CustomImageManager.AddAsset) == "function"
+                            and type(CustomImageManager.DownloadAsset) == "function"
+                            and type(CustomImageManager.GetAsset) == "function"
+
+                        if ManagerReady then
+                            local AssetOK = pcall(function()
+                                if CustomImageManagerAssets[FileName] == nil then
+                                    CustomImageManager.AddAsset(FileName, 0, Source)
+                                else
+                                    CustomImageManager.DownloadAsset(FileName, true)
+                                end
+                                AssetId = CustomImageManager.GetAsset(FileName)
+                            end)
+                            if not AssetOK then AssetId = nil end
                         end
 
-                        BackgroundImage.Image = CustomImageManager.GetAsset(FileName)
-                        BackgroundImage.ImageRectOffset = Vector2.zero
-                        BackgroundImage.ImageRectSize = Vector2.zero
+                        if AssetId then
+                            BackgroundImage.Image = AssetId
+                            BackgroundImage.ImageRectOffset = Vector2.zero
+                            BackgroundImage.ImageRectSize = Vector2.zero
+                            ValidIcon = true
+                        else
+                            -- Keep the UI alive if the executor cannot download custom images.
+                            ValidIcon = false
+                        end
                     end
                 end
             elseif BackgroundIcon then
@@ -15580,6 +15647,7 @@ function Library:CreateWindow(WindowInfo)
     end))
 
     Window.MainFrame = MainFrame
+    Window.Info = WindowInfo
     Library.Window = Window
 
     --// Veloria default background: apply configured URL automatically
@@ -15741,6 +15809,39 @@ function Library:CreateWindow(WindowInfo)
             Tooltip = "Write the active profile when the library unloads",
         })
 
+        local ThemeBox = SettingsTab:AddGroupbox({
+            Name = "Custom Appearance",
+            IconName = "palette",
+        })
+
+        local function SaveAppearanceIfPossible()
+            pcall(function()
+                Library:SaveConfig(CurrentProfile)
+            end)
+        end
+
+        ThemeBox:AddColorPicker("VeloriaCustomAccentColor", {
+            Title = "Accent Color",
+            Default = Library.Scheme.AccentColor or Color3.fromRGB(210, 35, 35),
+            Callback = function(Color)
+                if typeof(Color) == "Color3" then
+                    Library:SetAccentColor(Color)
+                    SaveAppearanceIfPossible()
+                end
+            end,
+        })
+
+        ThemeBox:AddColorPicker("VeloriaCustomBackgroundTint", {
+            Title = "Background Tint",
+            Default = Color3.fromRGB(255, 255, 255),
+            Callback = function(Color)
+                if typeof(Color) == "Color3" then
+                    pcall(function() Window:SetBackgroundSettings(nil, nil, Color) end)
+                    SaveAppearanceIfPossible()
+                end
+            end,
+        })
+
         local BgBox = SettingsTab:AddGroupbox({
             Name = "Background",
             IconName = "image",
@@ -15772,6 +15873,7 @@ function Library:CreateWindow(WindowInfo)
                 Window:SetBackgroundImage(Value)
             end)
             if Ok then
+                SaveAppearanceIfPossible()
                 Library:Notify({ Title = "Background", Description = Value, Time = 2 })
             else
                 Library:Notify({ Title = "Background", Description = tostring(Err), Time = 4 })
@@ -15821,6 +15923,7 @@ function Library:CreateWindow(WindowInfo)
                 end)
 
                 if Ok then
+                    SaveAppearanceIfPossible()
                     Library:Notify({ Title = "Background", Description = "Custom URL applied.", Time = 3 })
                 else
                     Library:Notify({ Title = "Background", Description = tostring(Err), Time = 4 })
@@ -15841,6 +15944,7 @@ function Library:CreateWindow(WindowInfo)
                 end)
 
                 if Ok then
+                    SaveAppearanceIfPossible()
                     local Opt = Options["VeloriaBackgroundURL"]
                     if Opt and Opt.SetValue then
                         pcall(function() Opt:SetValue("") end)
