@@ -542,10 +542,6 @@ local function VeloriaCreateSettingsTab(Window)
             Window:SetBackgroundTransparency(value)
         end,
     })
-    BackgroundBox:Paragraph({
-        Name = "Note",
-        Content = "Templates load from background.lua in your Veloria repository. Custom web images may require executor writefile/getcustomasset support.",
-    })
 
     Tab:ConfigManager({Title = "Config Save / Load", Placeholder = "config name"})
     Tab:Section("Config location")
