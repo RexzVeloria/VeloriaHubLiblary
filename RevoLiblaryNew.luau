@@ -39,9 +39,20 @@ local a=(function()local a=game:GetService('TweenService')local b=game:GetServic
         BackgroundTransparency = 1,
         ImageColor3 = z.Accent,
         ScaleType = Enum.ScaleType.Fit,
+        ClipsDescendants = true,
         ZIndex = 31,
         Parent = button,
     })
+
+    -- The source logo has a square canvas. Clip the image to a circle so its
+    -- black square background does not show as a square inside the toggle.
+    aj(icon, UDim.new(1, 0))
+    ai('UIAspectRatioConstraint', {
+        AspectRatio = 1,
+        DominantAxis = Enum.DominantAxis.Width,
+        Parent = icon,
+    })
+
     local buttonScale = ai('UIScale', {Parent = button})
 
     self.ToggleButton = button
@@ -151,6 +162,7 @@ local a=(function()local a=game:GetService('TweenService')local b=game:GetServic
 
     table.insert(self._connections, b.InputEnded:Connect(finishInput))
 
+    -- Keep a dragged button visible after a device rotation or viewport resize.
     table.insert(self._connections, gui:GetPropertyChangedSignal('AbsoluteSize'):Connect(function()
         if self._destroyed or not button.Parent or button.AnchorPoint ~= Vector2.zero then
             return
@@ -355,6 +367,9 @@ local function VeloriaCreateSocialTab(Window, Options)
     local websiteURL = type(Options.WebsiteURL) == "string" and Options.WebsiteURL ~= ""
         and Options.WebsiteURL or "https://rexzveloriahub.vercel.app"
 
+    -- Preview images are fetched from the public GitHub repo as raw image files.
+    -- Add these files to the repo so the cards can load them:
+    -- social/community.png and social/website.png
     local communityPreviewURL = type(Options.CommunityPreviewURL) == "string" and Options.CommunityPreviewURL ~= ""
         and Options.CommunityPreviewURL
         or "https://raw.githubusercontent.com/RexzVeloria/VeloriaHubLiblary/refs/heads/main/social/community.png"
@@ -559,6 +574,7 @@ VeloriaLibrary.Window = function(self, Options)
     Options.Name = Options.Name or "Veloria Hub"
     Options.Icon = Options.Icon or VeloriaGetLogo()
 
+    -- Always use a floating, draggable circular button with the Veloria logo.
     local toggleOptions = type(Options.ToggleButton) == "table" and table.clone(Options.ToggleButton) or {}
     toggleOptions.Enabled = true
     toggleOptions.Icon = VeloriaGetLogo()
@@ -583,6 +599,8 @@ VeloriaLibrary.Window = function(self, Options)
         return Window
     end
 
+    -- Use the original implementation for our built-in tabs, then intercept
+    -- future Tab/CreateTab calls so Settings stays last.
     Window._veloriaOriginalTab = Window.Tab
     VeloriaCreateSocialTab(Window, Options)
     VeloriaCreateSettingsTab(Window)
