@@ -1349,7 +1349,8 @@ local a = (function()
         local aV = am(
             {
                 Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
-                Text = k._rich(aT.Content or ''), TextSize = 13, FontFace = D.Regular,
+                Text = k._rich(aT.Content or ''),
+                TextSize = math.clamp(tonumber(aT.TextSize) or 13, 10, 24), FontFace = D.Regular,
                 TextColor3 = z.Muted, TextWrapped = true, TextTruncate = Enum.TextTruncate.None,
                 TextYAlignment = Enum.TextYAlignment.Top, RichText = true, LayoutOrder = 2,
                 Parent = aU
@@ -8093,7 +8094,7 @@ local a = (function()
             )
             return bO
         end
-        local bN = {Holder = bK, Left = bM(1), Right = bM(2), Counts = {0, 0}, Stacked = false}
+        local bN = {Holder = bK, Left = bM(1), Right = bM(2), Counts = {0, 0}, FullCount = 0, Stacked = false}
         local bO = self.Window
         local function bP()
             local bQ = bK.AbsoluteSize.X / bO.Scale.Scale
@@ -8129,20 +8130,26 @@ local a = (function()
         local bM = self.Window
         local bN = self:_columns()
         local bO = bK.Side
-        if bO == 'Left' or bO == 1 then
-            bO = 1
-        elseif bO == 'Right' or bO == 2 then
-            bO = 2
+        local bP0 = bO == 'Full' or bO == 'FullWidth' or bO == 'full'
+        if bP0 then
+            bN.FullCount = (bN.FullCount or 0) + 1
         else
-            bO = bN.Counts[1] <= bN.Counts[2] and 1 or 2
+            if bO == 'Left' or bO == 1 then
+                bO = 1
+            elseif bO == 'Right' or bO == 2 then
+                bO = 2
+            else
+                bO = bN.Counts[1] <= bN.Counts[2] and 1 or 2
+            end
+            bN.Counts[bO] += 1
         end
-        bN.Counts[bO] += 1
         local bP = ai(
             'Frame',
             {
                 Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
-                BackgroundColor3 = z.Surface2, BorderSizePixel = 0, LayoutOrder = bN.Counts[bO],
-                Parent = bO == 1 and bN.Left or bN.Right
+                BackgroundColor3 = z.Surface2, BorderSizePixel = 0,
+                LayoutOrder = bP0 and (100000 + bN.FullCount) or bN.Counts[bO],
+                Parent = bP0 and self.List or (bO == 1 and bN.Left or bN.Right)
             }
         )
         bP:SetAttribute('NoDrag', true)
@@ -19636,6 +19643,250 @@ local function VeloriaCreateSocialTab(Window, Options)
     return Tab
 end
 
+local function VeloriaCreateGlobalChatTab(Window, Options)
+    if Options.GlobalChatEnabled == false then
+        return nil
+    end
+
+    local defaultEndpoint = "https://globchat.rexzhub.workers.dev"
+    local endpoint = tostring(Options.GlobalChatURL or defaultEndpoint)
+    if not endpoint:match("^https?://") then
+        endpoint = defaultEndpoint
+    end
+    local pollInterval = math.clamp(tonumber(Options.GlobalChatPollInterval) or 10, 10, 60)
+    local httpService = game:GetService("HttpService")
+    local players = game:GetService("Players")
+    local player = players.LocalPlayer
+    local running = true
+    local refreshing = false
+    local sending = false
+    local lastError = nil
+
+    local Tab = VeloriaAddTab(
+        Window,
+        {
+            Name = "Global Chat", Desc = "Messages shared across supported servers",
+            Icon = "messages-square", PageTitle = "Global Chat",
+        }
+    )
+
+    local MessageBox = Tab:Groupbox({Name = "Chat History", Icon = "messages-square", Side = "Full"})
+    local ConnectionStatus = MessageBox:Label({Name = "Connection", Text = "Connecting to global chat..."})
+    local Feed = MessageBox:Paragraph({
+        Name = "Messages", Content = "Loading messages...", TextSize = 15,
+    })
+
+    local Composer = Tab:Groupbox({Name = "Send a Message", Icon = "send", Side = "Full"})
+    Composer:Paragraph({
+        Name = "Message rules",
+        Content = "Messages are shared across servers. Do not share private information.",
+    })
+
+    local InputControl
+    local function trim(value)
+        return tostring(value or ""):match("^%s*(.-)%s*$")
+    end
+
+    local function escapeRichText(value)
+        local escaped = tostring(value or ""):gsub("[%c]", " ")
+        escaped = escaped:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+        return escaped
+    end
+
+    local function setStatus(message)
+        if ConnectionStatus and type(ConnectionStatus.Set) == "function" then
+            pcall(ConnectionStatus.Set, ConnectionStatus, escapeRichText(message))
+        end
+    end
+
+    local function apiRequest(method, payload)
+        local requestFunction = (syn and syn.request) or http_request or request
+        if type(requestFunction) ~= "function" then
+            return nil, "This executor does not provide HTTP requests."
+        end
+
+        local requestOptions = {
+            Url = endpoint,
+            Method = method,
+            Headers = { ["Content-Type"] = "application/json", ["Accept"] = "application/json" },
+        }
+        if payload ~= nil then
+            requestOptions.Body = httpService:JSONEncode(payload)
+        end
+
+        local callOK, response = pcall(requestFunction, requestOptions)
+        if not callOK or type(response) ~= "table" then
+            return nil, tostring(response or "HTTP request failed")
+        end
+
+        local statusCode = tonumber(response.StatusCode or response.Status) or 200
+        local body = tostring(response.Body or "")
+        local decodeOK, data = pcall(function()
+            return httpService:JSONDecode(body)
+        end)
+        if statusCode < 200 or statusCode >= 300 then
+            if decodeOK and type(data) == "table" and data.error then
+                return nil, tostring(data.error)
+            end
+            return nil, "Global chat API returned HTTP " .. tostring(statusCode)
+        end
+        if not decodeOK or type(data) ~= "table" then
+            return nil, "The global chat API returned invalid JSON."
+        end
+        if data.ok == false then
+            return nil, tostring(data.error or "The request was rejected.")
+        end
+        return data
+    end
+
+    local function renderMessages(messages)
+        if type(messages) ~= "table" then
+            messages = {}
+        end
+
+        local lines = {}
+        local count = math.min(#messages, 20)
+        for index = count, 1, -1 do
+            local item = messages[index]
+            if type(item) == "table" then
+                local timestamp = tonumber(item.createdAt or item.timestamp)
+                local clock = "--:--"
+                if timestamp then
+                    if timestamp > 100000000000 then
+                        timestamp = math.floor(timestamp / 1000)
+                    end
+                    local dateOK, dateValue = pcall(os.date, "%H:%M", timestamp)
+                    if dateOK and dateValue then
+                        clock = dateValue
+                    end
+                end
+                local name = escapeRichText(item.displayName or item.username or "Unknown")
+                local message = escapeRichText(item.message or "")
+                if message ~= "" then
+                    table.insert(lines, "[" .. clock .. "] " .. name .. ": " .. message)
+                end
+            end
+        end
+
+        if #lines == 0 then
+            Feed:Set("No messages yet. Send the first message.")
+        else
+            Feed:Set(table.concat(lines, "\n"))
+        end
+        if ConnectionStatus and type(ConnectionStatus.Set) == "function" then
+            pcall(ConnectionStatus.Set, ConnectionStatus, escapeRichText("Connected · " .. tostring(#lines) .. " recent messages"))
+        end
+        lastError = nil
+    end
+
+    local function refreshMessages()
+        if refreshing or not running or Window._destroyed then
+            return
+        end
+        refreshing = true
+        local data, err = apiRequest("GET")
+        if data then
+            renderMessages(data.messages)
+        else
+            local message = tostring(err or "Could not load messages.")
+            setStatus("Connection error · " .. message)
+            if lastError ~= message then
+                lastError = message
+            end
+        end
+        refreshing = false
+    end
+
+    local nextAllowedSend = 0
+    local function sendMessage()
+        if sending or not running or Window._destroyed then
+            return
+        end
+        local message = trim(InputControl and InputControl:Get() or "")
+        if message == "" then
+            setStatus("Type a message before sending.")
+            return
+        end
+        local characterCount = #message
+        pcall(function()
+            local count = utf8.len(message)
+            if count then
+                characterCount = count
+            end
+        end)
+        if characterCount > 180 then
+            setStatus("Message is too long. Keep it under 180 characters.")
+            return
+        end
+        if os.clock() < nextAllowedSend then
+            setStatus("Please wait a moment before sending another message.")
+            return
+        end
+        sending = true
+        nextAllowedSend = os.clock() + 3
+        setStatus("Sending message...")
+
+        task.spawn(function()
+            local ok, result, requestError = pcall(function()
+                return apiRequest("POST", {
+                    username = player and player.Name or "Player",
+                    displayName = player and player.DisplayName or "Player",
+                    userId = player and player.UserId or 0,
+                    message = message,
+                })
+            end)
+            if not running or Window._destroyed then
+                sending = false
+                return
+            end
+            if ok and result then
+                if InputControl then
+                    pcall(InputControl.Set, InputControl, "", true)
+                end
+                setStatus("Message sent.")
+                refreshMessages()
+            else
+                local err = ok and tostring(requestError or "The message was rejected.") or tostring(result)
+                setStatus("Send failed · " .. err)
+            end
+            sending = false
+        end)
+    end
+
+    InputControl = Composer:Input({
+        Name = "Message", Placeholder = "Write a message...", Default = "",
+        Callback = function(_, enterPressed)
+            if enterPressed then
+                sendMessage()
+            end
+        end,
+    })
+    Composer:Paragraph({
+        Name = "Delivery",
+        Content = "Send your message to share it with users across supported servers.",
+    })
+    Composer:Button({Name = "Send Message", Icon = "send", Style = "Primary", Callback = sendMessage})
+    Composer:Label({Name = "Auto refresh", Text = "Messages refresh every " .. tostring(pollInterval) .. " seconds"})
+    Composer:Button({Name = "Refresh Now", Icon = "refresh-cw", Callback = function()
+        task.spawn(refreshMessages)
+    end})
+
+    Window._veloriaStopGlobalChat = function()
+        running = false
+    end
+    task.spawn(function()
+        refreshMessages()
+        while running and not Window._destroyed do
+            task.wait(pollInterval)
+            if running and not Window._destroyed then
+                refreshMessages()
+            end
+        end
+    end)
+
+    return Tab
+end
+
 local function VeloriaCreateSettingsTab(Window)
     local Tab = VeloriaAddTab(
         Window,
@@ -19815,6 +20066,7 @@ VeloriaLibrary.Window = function(self, Options)
     -- future Tab/CreateTab calls so Settings stays last.
     Window._veloriaOriginalTab = Window.Tab
     VeloriaCreateSocialTab(Window, Options)
+    VeloriaCreateGlobalChatTab(Window, Options)
     VeloriaCreateSettingsTab(Window)
 
     local OriginalTab = Window._veloriaOriginalTab
