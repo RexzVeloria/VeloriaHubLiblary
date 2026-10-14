@@ -383,6 +383,42 @@ local a = (function()
         end
         return nil
     end
+    local iconAliasModuleURL = 'https://raw.githubusercontent.com/RexzVeloria/VeloriaHubLiblary/refs/heads/main/icon.lua'
+    local iconAliasCache = nil
+    local iconAliasFallbacks = {
+        Veloria = 'rbxassetid://99716974769256', veloria = 'rbxassetid://99716974769256',
+        Verlo = 'rbxassetid://99716974769256', verlo = 'rbxassetid://99716974769256',
+        VH = 'rbxassetid://99716974769256', vh = 'rbxassetid://99716974769256'
+    }
+    local function loadIconAliases()
+        if iconAliasCache ~= nil then
+            return iconAliasCache
+        end
+        -- Cache failure too, so an unavailable endpoint is not requested for every UI icon.
+        iconAliasCache = false
+        local ok, result = pcall(function()
+            if type(loadstring) ~= 'function' then
+                return nil
+            end
+            local source = game:HttpGet(iconAliasModuleURL)
+            if type(source) ~= 'string' or source == '' then
+                return nil
+            end
+            local compileOK, chunk = pcall(loadstring, source)
+            if not compileOK or type(chunk) ~= 'function' then
+                return nil
+            end
+            local runOK, aliases = pcall(chunk)
+            if runOK and type(aliases) == 'table' then
+                return aliases
+            end
+            return nil
+        end)
+        if ok and type(result) == 'table' then
+            iconAliasCache = result
+        end
+        return iconAliasCache
+    end
     local function w(x)
         if typeof(x) == 'table' then
             return v(x.Image) or x.Image, x.RectOffset, x.RectSize, true, x.Tint == true
@@ -394,21 +430,43 @@ local a = (function()
         if type(x) ~= 'string' then
             return nil
         end
+
+        -- Resolve known Veloria names first, preferring the live icon.lua value.
+        local fallbackAlias = iconAliasFallbacks[x]
+        if fallbackAlias then
+            local aliases = loadIconAliases()
+            local aliasValue = type(aliases) == 'table' and aliases[x] or nil
+            local aliasImage = v(aliasValue or fallbackAlias)
+            if aliasImage then
+                return aliasImage, nil, nil, true, false
+            end
+        end
+
         local z = x:gsub('^lucide:', '')
         local A = s()
+        if A then
+            local B = (A.Icons and A.Icons[z]) or A[z]
+            if type(B) == 'table' then
+                local C = B.Image
+                if type(C) == 'number' then
+                    C = 'rbxassetid://' .. tostring(C)
+                end
+                local D = (A.Spritesheets and A.Spritesheets[tostring(C)]) or C
+                return D, B.ImageRectPosition, B.ImageRectSize
+            elseif type(B) == 'string' then
+                return B
+            end
+        end
+
+        -- Unknown names may be additional aliases defined in icon.lua.
+        local aliases = loadIconAliases()
+        local aliasValue = type(aliases) == 'table' and aliases[x] or nil
+        local aliasImage = v(aliasValue)
+        if aliasImage then
+            return aliasImage, nil, nil, true, false
+        end
         if not A then
             return nil
-        end
-        local B = (A.Icons and A.Icons[z]) or A[z]
-        if type(B) == 'table' then
-            local C = B.Image
-            if type(C) == 'number' then
-                C = 'rbxassetid://' .. tostring(C)
-            end
-            local D = (A.Spritesheets and A.Spritesheets[tostring(C)]) or C
-            return D, B.ImageRectPosition, B.ImageRectSize
-        elseif type(B) == 'string' then
-            return B
         end
         warn('[VeloriaHub] unknown lucide icon: ' .. z)
         return nil
@@ -756,7 +814,11 @@ local a = (function()
         if az then
             ah(ar, {ImageColor3 = Color3.new(1, 1, 1)}, 0)
         end
-        local aA = ax and not at and as ~= A.Logo and (typeof(as) == 'table' and tonumber(as.Scale) or ap) or 1
+        local usesIconAlias = type(as) == 'string' and (
+            iconAliasFallbacks[as] ~= nil or
+            (type(iconAliasCache) == 'table' and iconAliasCache[as] ~= nil)
+        )
+        local aA = ax and not at and as ~= A.Logo and not usesIconAlias and (typeof(as) == 'table' and tonumber(as.Scale) or ap) or 1
         local aB = ar:FindFirstChild('CustomIconScale')
         if aA ~= 1 then
             aB = aB or ai('UIScale', {Name = 'CustomIconScale', Parent = ar})
@@ -6306,7 +6368,7 @@ local a = (function()
             a7.Visible = false
         end
         local a9 = self.Minimized or not self.Open
-        ah(self._toggleStroke, {Color = z.Stroke, Transparency = 0.48}, 0.35)
+        ah(self._toggleStroke, {Color = z.StrokeHover, Transparency = 0.2}, 0.35)
         local ba = self._toggleIcon
         ah(ba, {Rotation = a9 and 180 or 0}, 0.5, Enum.EasingStyle.Quint)
         if not ba:GetAttribute('CustomIcon') then
@@ -6315,8 +6377,8 @@ local a = (function()
     end
     function a2:_createToggleButton(options)
         local gui = self.Gui
-        local size = tonumber(options.Size) or (E and 56 or 50)
-        local iconSize = math.floor(size * 0.82)
+        local size = tonumber(options.Size) or (E and 56 or 54)
+        local iconSize = math.floor(size * 0.72)
 
         self._toggleEnabled = options.Enabled ~= false
         self._togglePlatform = options.Platform == 'Both' and 'Both' or 'Mobile'
@@ -6341,7 +6403,8 @@ local a = (function()
             {AspectRatio = 1, DominantAxis = Enum.DominantAxis.Width, Parent = button,}
         )
 
-        local stroke = ak(button, z.Stroke)
+        -- Give the round button a clear, subtle ring instead of a nearly invisible edge.
+        local stroke = ak(button, z.StrokeHover, 0.2, 1.35)
         local icon = ai(
             'ImageLabel',
             {
@@ -19726,8 +19789,8 @@ VeloriaLibrary.Window = function(self, Options)
         Options.ToggleButton
     ) or {}
     toggleOptions.Enabled = true
-    toggleOptions.Icon = VeloriaGetLogo()
-    toggleOptions.Size = 50
+    toggleOptions.Icon = {Image = VeloriaGetLogo(), Scale = 1}
+    toggleOptions.Size = 54
     toggleOptions.Platform = "Both"
     toggleOptions.Position = UDim2.new(0, 46, 0.5, 0)
     Options.ToggleButton = toggleOptions
