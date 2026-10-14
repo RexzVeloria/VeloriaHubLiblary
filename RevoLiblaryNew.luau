@@ -9262,13 +9262,17 @@ local a = (function()
         )
         local ce = {
             None = 'None', Snow = 'Snow', Rain = 'Rain', Ember = 'Hell Fire', Sakura = 'Sakura',
-            Fireflies = 'Fireflies', Matrix = 'Matrix'
+            Fireflies = 'Fireflies', Matrix = 'Matrix', Veloria = 'Veloria Logo',
+            Void = 'Void Dust', Eclipse = 'Eclipse'
         }
         if bS._backdrop and bQ.Weather ~= false then
             bY = bR:Dropdown(
                 {
                     Name = 'Weather',
-                    Options = {'Snow', 'Rain', 'Hell Fire', 'Sakura', 'Fireflies', 'Matrix', 'None'},
+                    Options = {
+                        'Snow', 'Rain', 'Hell Fire', 'Sakura', 'Fireflies', 'Matrix',
+                        'Veloria Logo', 'Void Dust', 'Eclipse', 'None'
+                    },
                     Default = ce[bS.Weather] or 'None', AllowNone = false,
                     Callback = function(cf)
                         if cf then
@@ -17106,6 +17110,16 @@ local a = (function()
         Fireflies = {
             Image = A.Glow, Count = 34, Glow = Color3.fromRGB(70, 150, 60), GlowAmount = 0.16
         },
+        -- Veloria effects use the logo and glow assets already defined by the library.
+        Veloria = {
+            Image = A.Logo, Count = 28, Glow = Color3.fromRGB(0, 217, 166), GlowAmount = 0.10
+        },
+        Void = {
+            Image = A.Glow, Count = 42, Glow = Color3.fromRGB(120, 225, 245), GlowAmount = 0.12
+        },
+        Eclipse = {
+            Image = A.Glow, Count = 32, Glow = Color3.fromRGB(244, 185, 66), GlowAmount = 0.10
+        },
         Matrix = {
             Text = true, Count = 38, Glow = Color3.fromRGB(30, 200, 90), GlowAmount = 0.07,
             Glyphs = '01234567890123456789\u{30a2}\u{30a4}\u{30a6}\u{30a8}\u{30aa}\u{30ab}\u{30ad}\u{30af}\u{30b1}\u{30b3}\u{30b5}\u{30b7}\u{30b9}\u{30bb}\u{30bd}\u{30bf}\u{30c1}\u{30c4}\u{30c6}\u{30c8}\u{30ca}\u{30cb}\u{30cc}\u{30cd}\u{30ce}\u{30cf}\u{30d2}\u{30d5}\u{30d8}\u{30db}\u{30de}\u{30df}\u{30e0}\u{30e1}\u{30e2}\u{30e4}\u{30e6}\u{30e8}\u{30e9}\u{30ea}\u{30eb}\u{30ec}\u{30ed}\u{30ef}\u{30f3}+-*=<>:'
@@ -17115,7 +17129,9 @@ local a = (function()
         rain = 'Rain', snow = 'Snow', ember = 'Ember', embers = 'Ember', fire = 'Ember',
         hellfire = 'Ember', sakura = 'Sakura', petals = 'Sakura', cherryblossom = 'Sakura',
         firefly = 'Fireflies', fireflies = 'Fireflies', matrix = 'Matrix', matrixrain = 'Matrix',
-        code = 'Matrix'
+        code = 'Matrix', veloria = 'Veloria', velorialogo = 'Veloria', logo = 'Veloria',
+        void = 'Void', voiddust = 'Void', stardust = 'Void', eclipse = 'Eclipse',
+        eclipseparticles = 'Eclipse'
     }
     local b0 = Vector2.new(7 / 420, 151 / 263)
     local b1 = Random.new()
@@ -17189,6 +17205,56 @@ local a = (function()
             b8.Color = Color3.fromRGB(200, 255, 120):Lerp(Color3.fromRGB(255, 230, 120), b5(0, 1))
             b8.X = b5(0, b9)
             b8.Y = b5(ca * 0.15, ca)
+        elseif b7 == 'Veloria' then
+            -- Slow falling Veloria logo marks with a subtle mint tint.
+            local cc = b5(15, 25)
+            b8.Size = Vector2.new(cc, cc)
+            b8.VY = b5(16, 34)
+            b8.VX = b5(-10, 12)
+            b8.Sway = b5(10, 26)
+            b8.Frequency = b5(0.35, 0.9)
+            b8.Spin = b5(-22, 22)
+            b8.Rotation = b5(0, 360)
+            b8.Alpha = b5(0.15, 0.42)
+            b8.Color = Color3.fromRGB(205, 255, 242)
+            b8.X = b5(-0.12 * b9, b9)
+            b8.Y = cb and b5(-20, ca) or b5(-80, -cc)
+        elseif b7 == 'Void' then
+            -- Cool glowing dust drifts gently in both directions.
+            local cc = b5(5, 11)
+            b8.Size = Vector2.new(cc, cc)
+            b8.VY = b5(-8, 20)
+            b8.VX = b5(-13, 13)
+            b8.Sway = b5(8, 25)
+            b8.SwayY = b5(5, 15)
+            b8.Frequency = b5(0.25, 0.75)
+            b8.Spin = b5(-14, 14)
+            b8.Rotation = b5(0, 360)
+            b8.Alpha = b5(0.08, 0.38)
+            b8.Life = b5(7, 13)
+            b8.Age = cb and b5(0, b8.Life) or 0
+            b8.Pulse = b5(0.8, 1.8)
+            b8.Color = Color3.fromRGB(135, 230, 250):Lerp(Color3.fromRGB(225, 255, 255), b5(0, 0.6))
+            b8.X = b5(0, b9)
+            b8.Y = b5(0, ca)
+        elseif b7 == 'Eclipse' then
+            -- Warm gold motes floating across the backdrop.
+            local cc = b5(5, 10)
+            b8.Size = Vector2.new(cc, cc)
+            b8.VY = b5(-10, 17)
+            b8.VX = b5(-9, 9)
+            b8.Sway = b5(9, 24)
+            b8.SwayY = b5(4, 13)
+            b8.Frequency = b5(0.2, 0.65)
+            b8.Spin = b5(-10, 10)
+            b8.Rotation = b5(0, 360)
+            b8.Alpha = b5(0.12, 0.4)
+            b8.Life = b5(8, 14)
+            b8.Age = cb and b5(0, b8.Life) or 0
+            b8.Pulse = b5(0.7, 1.5)
+            b8.Color = Color3.fromRGB(244, 185, 66):Lerp(Color3.fromRGB(255, 235, 180), b5(0, 0.5))
+            b8.X = b5(0, b9)
+            b8.Y = b5(0, ca)
         elseif b7 == 'Matrix' then
             local cc = bZ.Matrix
             if not cc.List then
@@ -17473,6 +17539,13 @@ local a = (function()
                 local cq, cr = ck.Age, ck.Life
                 cn *= math.clamp(math.min(cq / 1.2, (cr - cq) / 1.2), 0, 1)
                 cn *= 0.5 + math.sin(ck.Time * ck.Pulse + ck.Phase) * 0.5
+            elseif cb == 'Veloria' then
+                cn *= 0.82 + math.sin(ck.Time * 1.2 + ck.Phase) * 0.12
+            elseif cb == 'Void' or cb == 'Eclipse' then
+                co += math.cos(ck.Time * ck.Frequency * 1.15 + ck.Phase) * (ck.SwayY or 0)
+                local cq, cr = ck.Age, ck.Life
+                cn *= math.clamp(math.min(cq / 1.4, (cr - cq) / 1.4), 0, 1)
+                cn *= 0.58 + math.sin(ck.Time * ck.Pulse + ck.Phase) * 0.42
             elseif cb == 'Matrix' then
                 ck.Shuffle -= b7 * cf
                 if ck.Shuffle <= 0 then
