@@ -19677,13 +19677,19 @@ local function VeloriaCreateGlobalChatTab(Window, Options)
         }
     )
 
-    local MessageBox = Tab:Groupbox({Name = "Chat History", Icon = "messages-square", Side = "Full"})
+    local ChatPage = Tab:SubTab({Name = "Chat", Icon = "messages-square"})
+    local ReportPage = Tab:SubTab({Name = "Report", Icon = "flag"})
+    local SettingsPage = Tab:SubTab({Name = "Settings", Icon = "settings"})
+
+    local MessageBox = ChatPage:Groupbox({Name = "Chat History", Icon = "messages-square", Side = "Full"})
     local ConnectionStatus = MessageBox:Label({Name = "Connection", Text = "Connecting to global chat..."})
     local PinnedAnnouncement = MessageBox:Paragraph({Name = "Pinned Announcement", Content = "No pinned announcement.", TextSize = 15})
     local SearchInput
     local Feed = MessageBox:Paragraph({Name = "Messages", Content = "Loading messages...", TextSize = 15})
 
-    local Composer = Tab:Groupbox({Name = "Send a Message", Icon = "send", Side = "Full"})
+    local Composer = ChatPage:Groupbox({Name = "Send a Message", Icon = "send", Side = "Full"})
+    local ReportBox = ReportPage:Groupbox({Name = "Report a Message", Icon = "flag", Side = "Full"})
+    local SettingsBox = SettingsPage:Groupbox({Name = "Chat Display", Icon = "sliders-horizontal", Side = "Full"})
     Composer:Paragraph({
         Name = "Message rules",
         Content = "Messages are shared across servers. Do not share private information. Max 180 characters.",
@@ -19705,6 +19711,13 @@ local function VeloriaCreateGlobalChatTab(Window, Options)
     local function setStatus(message)
         if ConnectionStatus and type(ConnectionStatus.Set) == "function" then
             pcall(ConnectionStatus.Set, ConnectionStatus, escapeRichText(message))
+        end
+    end
+
+    local ReportStatus = ReportBox:Label({Name = "Report Status", Text = "Enter a message ID to submit a report."})
+    local function setReportStatus(message)
+        if ReportStatus and type(ReportStatus.Set) == "function" then
+            pcall(ReportStatus.Set, ReportStatus, escapeRichText(message))
         end
     end
 
@@ -19909,9 +19922,9 @@ local function VeloriaCreateGlobalChatTab(Window, Options)
         task.spawn(refreshMessages)
     end})
 
-    Composer:Paragraph({Name = "Report a message", Content = "Each message shows its ID as #number. Enter that ID to report a message for review.", TextSize = 13})
-    ReportIdInput = Composer:Input({Name = "Message ID", Placeholder = "Message ID, e.g. 123", Default = ""})
-    Composer:Dropdown({
+    ReportBox:Paragraph({Name = "Report a message", Content = "Select a message ID from Chat History and send it for review.", TextSize = 13})
+    ReportIdInput = ReportBox:Input({Name = "Message ID", Placeholder = "Message ID, e.g. 123", Default = ""})
+    ReportBox:Dropdown({
         Name = "Report reason", Options = {"Spam", "Abuse", "Scam", "Other"}, Default = "Spam",
         Callback = function(value)
             ReportReason = tostring(value or "Other")
@@ -19921,11 +19934,11 @@ local function VeloriaCreateGlobalChatTab(Window, Options)
         if reporting or not running or Window._destroyed then return end
         local messageId = tonumber(trim(ReportIdInput and ReportIdInput:Get() or ""))
         if not messageId or messageId < 1 or messageId % 1 ~= 0 then
-            setStatus("Enter a valid message ID from Chat History.")
+            setReportStatus("Enter a valid message ID from Chat History.")
             return
         end
         reporting = true
-        setStatus("Submitting report...")
+        setReportStatus("Submitting report...")
         task.spawn(function()
             local data, err = apiRequest("POST", {
                 action = "report",
@@ -19935,37 +19948,28 @@ local function VeloriaCreateGlobalChatTab(Window, Options)
             })
             if data then
                 if ReportIdInput then pcall(ReportIdInput.Set, ReportIdInput, "", true) end
-                setStatus("Report submitted for moderator review.")
+                setReportStatus("Report submitted.")
             else
-                setStatus("Report failed · " .. tostring(err or "Unknown error"))
+                setReportStatus("Report failed · " .. tostring(err or "Unknown error"))
             end
             reporting = false
         end)
     end
-    Composer:Button({Name = "Report Message", Icon = "flag", Callback = reportMessage})
+    ReportBox:Button({Name = "Submit Report", Icon = "flag", Style = "Primary", Callback = reportMessage})
 
-    Composer:Toggle({
+    SettingsBox:Toggle({
         Name = "Show timestamps", Default = true,
         Callback = function(value)
             showTimestamps = value == true
             renderMessages(latestMessages, onlineCount)
         end,
     })
-    Composer:Toggle({
+    SettingsBox:Toggle({
         Name = "Compact view", Default = true,
         Callback = function(value)
             compactMode = value == true
             renderMessages(latestMessages, onlineCount)
         end,
-    })
-    Composer:Button({Name = "Copy moderation dashboard URL", Icon = "copy", Callback = function()
-        VeloriaCopy(Window, endpoint:gsub("/+$", "") .. "/admin")
-        setStatus("Moderation URL copied. Set ADMIN_TOKEN in Cloudflare Worker secrets before using it.")
-    end})
-    Composer:Paragraph({
-        Name = "Moderation setup",
-        Content = "Admins: open the /admin URL in a browser. Configure the ADMIN_TOKEN Worker secret in Cloudflare first. Never put the admin token in this library.",
-        TextSize = 13,
     })
 
     Window._veloriaStopGlobalChat = function()
