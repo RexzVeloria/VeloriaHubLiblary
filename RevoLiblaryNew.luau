@@ -19660,7 +19660,14 @@ local function VeloriaCreateGlobalChatTab(Window, Options)
     local running = true
     local refreshing = false
     local sending = false
+    local reporting = false
     local lastError = nil
+    local latestMessages = {}
+    local searchTerm = ""
+    local showTimestamps = true
+    local compactMode = true
+    local onlineCount = 0
+    local pinnedMessage = nil
 
     local Tab = VeloriaAddTab(
         Window,
@@ -19672,17 +19679,19 @@ local function VeloriaCreateGlobalChatTab(Window, Options)
 
     local MessageBox = Tab:Groupbox({Name = "Chat History", Icon = "messages-square", Side = "Full"})
     local ConnectionStatus = MessageBox:Label({Name = "Connection", Text = "Connecting to global chat..."})
-    local Feed = MessageBox:Paragraph({
-        Name = "Messages", Content = "Loading messages...", TextSize = 15,
-    })
+    local PinnedAnnouncement = MessageBox:Paragraph({Name = "Pinned Announcement", Content = "No pinned announcement.", TextSize = 15})
+    local SearchInput
+    local Feed = MessageBox:Paragraph({Name = "Messages", Content = "Loading messages...", TextSize = 15})
 
     local Composer = Tab:Groupbox({Name = "Send a Message", Icon = "send", Side = "Full"})
     Composer:Paragraph({
         Name = "Message rules",
-        Content = "Messages are shared across servers. Do not share private information.",
+        Content = "Messages are shared across servers. Do not share private information. Max 180 characters.",
     })
 
     local InputControl
+    local ReportIdInput
+    local ReportReason = "Spam"
     local function trim(value)
         return tostring(value or ""):match("^%s*(.-)%s*$")
     end
@@ -19739,57 +19748,97 @@ local function VeloriaCreateGlobalChatTab(Window, Options)
         return data
     end
 
-    local function renderMessages(messages)
+    local function formatClock(item)
+        local timestamp = tonumber(item.createdAt or item.timestamp)
+        if not timestamp then
+            return "--:--"
+        end
+        if timestamp > 100000000000 then
+            timestamp = math.floor(timestamp / 1000)
+        end
+        local dateOK, dateValue = pcall(os.date, "%H:%M", timestamp)
+        return dateOK and dateValue or "--:--"
+    end
+
+    local function renderMessages(messages, newOnlineCount)
         if type(messages) ~= "table" then
             messages = {}
         end
+        latestMessages = messages
+        if tonumber(newOnlineCount) then
+            onlineCount = math.max(0, math.floor(tonumber(newOnlineCount)))
+        end
+
+        if pinnedMessage and type(pinnedMessage) == "table" and pinnedMessage.message then
+            PinnedAnnouncement:Set("<Accent>PINNED</Accent>  " .. escapeRichText(pinnedMessage.message))
+        else
+            PinnedAnnouncement:Set("<Muted>No pinned announcement.</Muted>")
+        end
 
         local lines = {}
-        local count = math.min(#messages, 20)
-        for index = count, 1, -1 do
+        local needle = string.lower(trim(searchTerm))
+        for index = #messages, 1, -1 do
             local item = messages[index]
             if type(item) == "table" then
-                local timestamp = tonumber(item.createdAt or item.timestamp)
-                local clock = "--:--"
-                if timestamp then
-                    if timestamp > 100000000000 then
-                        timestamp = math.floor(timestamp / 1000)
+                local id = tonumber(item.id) or 0
+                local rawName = tostring(item.displayName or item.username or "Unknown")
+                local rawUsername = tostring(item.username or rawName)
+                local rawMessage = tostring(item.message or "")
+                local haystack = string.lower(rawName .. " " .. rawUsername .. " " .. rawMessage .. " " .. tostring(id))
+                if needle == "" or string.find(haystack, needle, 1, true) then
+                    local clock = formatClock(item)
+                    local name = escapeRichText(rawName)
+                    local message = escapeRichText(rawMessage)
+                    local header = "<Accent>▌ #" .. tostring(id) .. "  " .. name .. "</Accent>"
+                    if showTimestamps then
+                        header = header .. " <Muted>· " .. clock .. "</Muted>"
                     end
-                    local dateOK, dateValue = pcall(os.date, "%H:%M", timestamp)
-                    if dateOK and dateValue then
-                        clock = dateValue
+                    if compactMode then
+                        table.insert(lines, header .. "  <Text>" .. message .. "</Text>")
+                    else
+                        table.insert(lines, "<Accent>╭─</Accent> " .. header .. "\n<Surface>│</Surface>  <Text>" .. message .. "</Text>\n<Muted>╰────────────────────────────────</Muted>")
                     end
-                end
-                local name = escapeRichText(item.displayName or item.username or "Unknown")
-                local message = escapeRichText(item.message or "")
-                if message ~= "" then
-                    table.insert(lines, "[" .. clock .. "] " .. name .. ": " .. message)
                 end
             end
         end
 
         if #lines == 0 then
-            Feed:Set("No messages yet. Send the first message.")
+            Feed:Set(needle ~= "" and "No messages match your search." or "No messages yet. Send the first message.")
         else
-            Feed:Set(table.concat(lines, "\n"))
+            Feed:Set(table.concat(lines, compactMode and "\n" or "\n\n"))
         end
-        if ConnectionStatus and type(ConnectionStatus.Set) == "function" then
-            pcall(ConnectionStatus.Set, ConnectionStatus, escapeRichText("Connected · " .. tostring(#lines) .. " recent messages"))
-        end
+        setStatus("Connected · " .. tostring(onlineCount) .. " online · " .. tostring(math.min(#messages, 20)) .. "/20 messages")
         lastError = nil
     end
+
+    SearchInput = MessageBox:Input({
+        Name = "Search messages", Placeholder = "Search username, message, or message ID...", Default = "",
+        Callback = function(value)
+            searchTerm = tostring(value or "")
+            renderMessages(latestMessages, onlineCount)
+        end,
+    })
 
     local function refreshMessages()
         if refreshing or not running or Window._destroyed then
             return
         end
         refreshing = true
+        local heartbeat, heartbeatError = apiRequest("POST", {
+            action = "heartbeat",
+            username = player and player.Name or "Player",
+            userId = player and player.UserId or 0,
+        })
         local data, err = apiRequest("GET")
         if data then
-            renderMessages(data.messages)
+            pinnedMessage = data.pinnedMessage
+            renderMessages(data.messages, data.onlineCount or (heartbeat and heartbeat.onlineCount) or onlineCount)
+            if not heartbeat and heartbeatError then
+                setStatus("Connected · presence unavailable · " .. tostring(#(data.messages or {})) .. "/20 messages")
+            end
         else
-            local message = tostring(err or "Could not load messages.")
-            setStatus("Connection error · " .. message)
+            local message = tostring(err or heartbeatError or "Could not load messages.")
+            setStatus("Offline · " .. message)
             if lastError ~= message then
                 lastError = message
             end
@@ -19810,9 +19859,7 @@ local function VeloriaCreateGlobalChatTab(Window, Options)
         local characterCount = #message
         pcall(function()
             local count = utf8.len(message)
-            if count then
-                characterCount = count
-            end
+            if count then characterCount = count end
         end)
         if characterCount > 180 then
             setStatus("Message is too long. Keep it under 180 characters.")
@@ -19825,7 +19872,6 @@ local function VeloriaCreateGlobalChatTab(Window, Options)
         sending = true
         nextAllowedSend = os.clock() + 3
         setStatus("Sending message...")
-
         task.spawn(function()
             local ok, result, requestError = pcall(function()
                 return apiRequest("POST", {
@@ -19840,9 +19886,7 @@ local function VeloriaCreateGlobalChatTab(Window, Options)
                 return
             end
             if ok and result then
-                if InputControl then
-                    pcall(InputControl.Set, InputControl, "", true)
-                end
+                if InputControl then pcall(InputControl.Set, InputControl, "", true) end
                 setStatus("Message sent.")
                 refreshMessages()
             else
@@ -19856,20 +19900,73 @@ local function VeloriaCreateGlobalChatTab(Window, Options)
     InputControl = Composer:Input({
         Name = "Message", Placeholder = "Write a message...", Default = "",
         Callback = function(_, enterPressed)
-            if enterPressed then
-                sendMessage()
-            end
+            if enterPressed then sendMessage() end
         end,
-    })
-    Composer:Paragraph({
-        Name = "Delivery",
-        Content = "Send your message to share it with users across supported servers.",
     })
     Composer:Button({Name = "Send Message", Icon = "send", Style = "Primary", Callback = sendMessage})
     Composer:Label({Name = "Auto refresh", Text = "Messages refresh every " .. tostring(pollInterval) .. " seconds"})
     Composer:Button({Name = "Refresh Now", Icon = "refresh-cw", Callback = function()
         task.spawn(refreshMessages)
     end})
+
+    Composer:Paragraph({Name = "Report a message", Content = "Each message shows its ID as #number. Enter that ID to report a message for review.", TextSize = 13})
+    ReportIdInput = Composer:Input({Name = "Message ID", Placeholder = "Message ID, e.g. 123", Default = ""})
+    Composer:Dropdown({
+        Name = "Report reason", Options = {"Spam", "Abuse", "Scam", "Other"}, Default = "Spam",
+        Callback = function(value)
+            ReportReason = tostring(value or "Other")
+        end,
+    })
+    local function reportMessage()
+        if reporting or not running or Window._destroyed then return end
+        local messageId = tonumber(trim(ReportIdInput and ReportIdInput:Get() or ""))
+        if not messageId or messageId < 1 or messageId % 1 ~= 0 then
+            setStatus("Enter a valid message ID from Chat History.")
+            return
+        end
+        reporting = true
+        setStatus("Submitting report...")
+        task.spawn(function()
+            local data, err = apiRequest("POST", {
+                action = "report",
+                userId = player and player.UserId or 0,
+                messageId = messageId,
+                reason = ReportReason,
+            })
+            if data then
+                if ReportIdInput then pcall(ReportIdInput.Set, ReportIdInput, "", true) end
+                setStatus("Report submitted for moderator review.")
+            else
+                setStatus("Report failed · " .. tostring(err or "Unknown error"))
+            end
+            reporting = false
+        end)
+    end
+    Composer:Button({Name = "Report Message", Icon = "flag", Callback = reportMessage})
+
+    Composer:Toggle({
+        Name = "Show timestamps", Default = true,
+        Callback = function(value)
+            showTimestamps = value == true
+            renderMessages(latestMessages, onlineCount)
+        end,
+    })
+    Composer:Toggle({
+        Name = "Compact view", Default = true,
+        Callback = function(value)
+            compactMode = value == true
+            renderMessages(latestMessages, onlineCount)
+        end,
+    })
+    Composer:Button({Name = "Copy moderation dashboard URL", Icon = "copy", Callback = function()
+        VeloriaCopy(Window, endpoint:gsub("/+$", "") .. "/admin")
+        setStatus("Moderation URL copied. Set ADMIN_TOKEN in Cloudflare Worker secrets before using it.")
+    end})
+    Composer:Paragraph({
+        Name = "Moderation setup",
+        Content = "Admins: open the /admin URL in a browser. Configure the ADMIN_TOKEN Worker secret in Cloudflare first. Never put the admin token in this library.",
+        TextSize = 13,
+    })
 
     Window._veloriaStopGlobalChat = function()
         running = false
@@ -19878,9 +19975,7 @@ local function VeloriaCreateGlobalChatTab(Window, Options)
         refreshMessages()
         while running and not Window._destroyed do
             task.wait(pollInterval)
-            if running and not Window._destroyed then
-                refreshMessages()
-            end
+            if running and not Window._destroyed then refreshMessages() end
         end
     end)
 
